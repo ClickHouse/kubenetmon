@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 )
 
@@ -32,17 +33,18 @@ const (
 )
 
 // NewEnvironment creates and validates the Environment name from a string.
-func NewEnvironment(environment string) (Environment, error) {
+func NewEnvironment(environment string) Environment {
 	switch environment {
 	case Development.String():
-		return Development, nil
+		return Development
 	case Staging.String():
-		return Staging, nil
+		return Staging
 	case Production.String():
-		return Production, nil
+		return Production
 	}
 
-	return "", fmt.Errorf("unknown environment %v", environment)
+	log.Warn().Msgf("Unexpected environment %v", environment)
+	return Environment(environment)
 }
 
 func (e Environment) String() string {

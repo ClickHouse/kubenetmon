@@ -221,9 +221,9 @@ func TestLabelRemote(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flowData := &FlowData{}
+			FlowData := &FlowData{}
 			remoteLabeler.cloud = tt.localCloud
-			err := remoteLabeler.labelRemote(&tt.endpoint, flowData)
+			err := remoteLabeler.labelRemote(&tt.endpoint, FlowData)
 			if tt.err == nil {
 				assert.NoError(t, err)
 			} else {
@@ -231,10 +231,10 @@ func TestLabelRemote(t *testing.T) {
 				assert.Contains(t, err.Error(), tt.err.Error())
 			}
 
-			assert.Equal(t, tt.expected.RemoteCloud, flowData.RemoteCloud)
-			assert.Equal(t, tt.expected.RemoteRegion, flowData.RemoteRegion)
-			assert.Equal(t, tt.expected.RemoteCloudService, flowData.RemoteCloudService)
-			assert.Equal(t, tt.expected.ConnectionClass, flowData.ConnectionClass)
+			assert.Equal(t, tt.expected.RemoteCloud, FlowData.RemoteCloud)
+			assert.Equal(t, tt.expected.RemoteRegion, FlowData.RemoteRegion)
+			assert.Equal(t, tt.expected.RemoteCloudService, FlowData.RemoteCloudService)
+			assert.Equal(t, tt.expected.ConnectionClass, FlowData.ConnectionClass)
 		})
 	}
 }

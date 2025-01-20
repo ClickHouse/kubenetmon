@@ -9,7 +9,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/clickhouse.com/kubenetmon/pkg/labeler"
+	"github.com/ClickHouse/kubenetmon/pkg/labeler"
 )
 
 // ErrInsertTimeout is returned by Inserter.Insert.
@@ -18,11 +18,10 @@ var ErrInsertTimeout error = errors.New("insert timed out")
 // RuntimeInfo has some basic information about where this inserter is running.
 // This observation gets inserted into ClickHouse as local endpoint annotations.
 type RuntimeInfo struct {
-	Cloud       labeler.Cloud
-	Env         labeler.Environment
-	Region      string
-	ClusterType string
-	Cell        string
+	Cloud   labeler.Cloud
+	Env     labeler.Environment
+	Region  string
+	Cluster string
 }
 
 // ClickHouseOptions are for configuring the ClickHouse connection.
@@ -58,7 +57,7 @@ type ClickHouseOptions struct {
 // Observation is a conntrack observation from kubenetmon-agent labeled by the
 // labeler.
 type Observation struct {
-	Flow      labeler.kubenetmonata
+	Flow      labeler.FlowData
 	Timestamp time.Time
 }
 
@@ -76,9 +75,9 @@ type Inserter struct {
 }
 
 // NewInserter creates a new Inserter.
-func NewInserter(clickHouseOptions ClickHouseOptions, runtimeInfo RuntimeInfo, numWorkers int) (*Inserter, error) {
+func NewInserter(clickhouseOptions ClickHouseOptions, runtimeInfo RuntimeInfo, numWorkers int) (*Inserter, error) {
 	ctx := context.Background()
-	conn, err := createClickHouseConnectionWithOptions(ctx, clickHouseOptions)
+	conn, err := createClickHouseConnectionWithOptions(ctx, clickhouseOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection: %w", err)
 	}
@@ -87,16 +86,16 @@ func NewInserter(clickHouseOptions ClickHouseOptions, runtimeInfo RuntimeInfo, n
 	// BatchSize batches. All workers compete to receive Observations from the
 	// same channel. The channel has a buffer of numWorkers * batchSize capacity
 	// in case workers get stuck.
-	ch := make(chan Observation, numWorkers*clickHouseOptions.BatchSize)
+	ch := make(chan Observation, numWorkers*clickhouseOptions.BatchSize)
 	workers := make([]*worker, 0, numWorkers)
 	for range numWorkers {
 		w := worker{
-			waitAsyncInsert:      clickHouseOptions.WaitForAsyncInsert,
+			waitAsyncInsert:      clickhouseOptions.WaitForAsyncInsert,
 			conn:                 conn,
-			batch:                make([]string, 0, clickHouseOptions.BatchSize),
-			batchExpirationTimer: time.NewTimer(clickHouseOptions.BatchSendTimeout),
-			batchSendTimeout:     clickHouseOptions.BatchSendTimeout,
-			batchSize:            clickHouseOptions.BatchSize,
+			batch:                make([]string, 0, clickhouseOptions.BatchSize),
+			batchExpirationTimer: time.NewTimer(clickhouseOptions.BatchSendTimeout),
+			batchSendTimeout:     clickhouseOptions.BatchSendTimeout,
+			batchSize:            clickhouseOptions.BatchSize,
 
 			runtimeInfo: runtimeInfo,
 			ch:          ch,
@@ -108,17 +107,17 @@ func NewInserter(clickHouseOptions ClickHouseOptions, runtimeInfo RuntimeInfo, n
 	return &Inserter{ch, workers}, nil
 }
 
-func createClickHouseConnectionWithOptions(ctx context.Context, clickHouseOptions ClickHouseOptions) (driver.Conn, error) {
-	if !clickHouseOptions.Enabled {
+func createClickHouseConnectionWithOptions(ctx context.Context, clickhouseOptions ClickHouseOptions) (driver.Conn, error) {
+	if !clickhouseOptions.Enabled {
 		return nil, nil
 	}
 
 	options := clickhouse.Options{
-		Addr: []string{clickHouseOptions.Endpoint},
+		Addr: []string{clickhouseOptions.Endpoint},
 		Auth: clickhouse.Auth{
-			Database: clickHouseOptions.Database,
-			Username: clickHouseOptions.Username,
-			Password: clickHouseOptions.Password,
+			Database: clickhouseOptions.Database,
+			Username: clickhouseOptions.Username,
+			Password: clickhouseOptions.Password,
 		},
 		ClientInfo: clickhouse.ClientInfo{
 			Products: []struct {
@@ -128,11 +127,11 @@ func createClickHouseConnectionWithOptions(ctx context.Context, clickHouseOption
 				{Name: "kubenetmon-server"},
 			},
 		},
-		MaxIdleConns: clickHouseOptions.MaxIdleConnections,
-		DialTimeout:  clickHouseOptions.DialTimeout,
+		MaxIdleConns: clickhouseOptions.MaxIdleConnections,
+		DialTimeout:  clickhouseOptions.DialTimeout,
 	}
 	// Configure TLS if need be.
-	if !clickHouseOptions.DisableTLS {
+	if !clickhouseOptions.DisableTLS {
 		options.TLS = &tls.Config{}
 	}
 
@@ -142,7 +141,7 @@ func createClickHouseConnectionWithOptions(ctx context.Context, clickHouseOption
 	}
 
 	// Test ClickHouse connection.
-	if !clickHouseOptions.SkipPing {
+	if !clickhouseOptions.SkipPing {
 		if err := conn.Ping(ctx); err != nil {
 			if exception, ok := err.(*clickhouse.Exception); ok {
 				err = fmt.Errorf("exception [%d] %s\n%s", exception.Code, exception.Message, exception.StackTrace)

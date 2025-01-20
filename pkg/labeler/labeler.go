@@ -10,8 +10,8 @@ import (
 	"github.com/PraserX/ipconv"
 	"github.com/rs/zerolog/log"
 
-	pb "github.com/clickhouse.com/kubenetmon/pkg/grpc"
-	"github.com/clickhouse.com/kubenetmon/pkg/watcher"
+	pb "github.com/ClickHouse/kubenetmon/pkg/grpc"
+	"github.com/ClickHouse/kubenetmon/pkg/watcher"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -90,10 +90,10 @@ func (m ConnectionFlags) String() string {
 // 9440 is used by native protocol with TLS (terminated by ClickHouse).
 var customerExclusiveClickHouseServerPorts = []uint16{8124, 8443, 9004, 9011, 9440}
 
-// kubenetmonata describes all the information needed for all Prometheus metrics
+// FlowdData describes all the information needed for all Prometheus metrics
 // related to a conntrack connection (one flow toward the local pod, one flow
 // out of the local pod).
-type kubenetmonata struct {
+type FlowData struct {
 	PacketsIn  uint64
 	BytesIn    uint64
 	PacketsOut uint64
@@ -114,8 +114,7 @@ type kubenetmonata struct {
 	// Remote cloud region. If remote is not a k8s pod that kubenetmon server knows
 	// of, it will derive it from cloud provider's IP range.
 	RemoteRegion           string
-	RemoteClusterType      string
-	RemoteCell             string
+	RemoteCluster          string
 	RemoteAvailabilityZone string
 	RemoteNode             string
 	RemoteInstanceID       string
@@ -190,7 +189,7 @@ const (
 
 // LabelerInterface does flow labeling.
 type LabelerInterface interface {
-	LabelFlow(node string, flow *pb.Observation_Flow) (*kubenetmonata, error)
+	LabelFlow(node string, flow *pb.Observation_Flow) (*FlowData, error)
 }
 
 // Labeler implements LabelerInterface.
@@ -203,12 +202,11 @@ type Labeler struct {
 	ignoreUDP     bool
 	watchers      []watcher.WatcherInterface
 	remoteLabeler *RemoteLabeler
-	awsAZ         *AWSAZInfoProvider
 }
 
 // NewLabeler create a Labeler.
-func NewLabeler(watchers []watcher.WatcherInterface, remoteLabeler *RemoteLabeler, awsAZ *AWSAZInfoProvider, ignoreUDP bool) *Labeler {
-	return &Labeler{ignoreUDP, watchers, remoteLabeler, awsAZ}
+func NewLabeler(watchers []watcher.WatcherInterface, remoteLabeler *RemoteLabeler, ignoreUDP bool) *Labeler {
+	return &Labeler{ignoreUDP, watchers, remoteLabeler}
 }
 
 func (labeler *Labeler) GetNodeByName(name string) (*corev1.Node, error) {
@@ -247,9 +245,9 @@ func (labeler *Labeler) GetPodsByIP(ip string) ([]*corev1.Pod, error) {
 	return nil, nil
 }
 
-// labelFlow takes a flow and populates a kubenetmonata struct with all data that
+// labelFlow takes a flow and populates a FlowData struct with all data that
 // needs to be reported about the flow.
-func (labeler *Labeler) LabelFlow(node string, flow *pb.Observation_Flow) (*kubenetmonata, error) {
+func (labeler *Labeler) LabelFlow(node string, flow *pb.Observation_Flow) (*FlowData, error) {
 	if labeler.ignoreUDP && flow.Proto == IP_PROTO_UDP {
 		return nil, ErrIgnoredUDPFlow
 	}
@@ -274,7 +272,7 @@ func (labeler *Labeler) LabelFlow(node string, flow *pb.Observation_Flow) (*kube
 		return nil, err
 	}
 
-	data := &kubenetmonata{
+	data := &FlowData{
 		ConnectionFlags: make(map[ConnectionFlag]bool),
 	}
 	// Set the protocol.
@@ -388,28 +386,7 @@ func (labeler *Labeler) LabelFlow(node string, flow *pb.Observation_Flow) (*kube
 		}
 	}
 
-	// For AWS, we try to look at subnet IP assignment directly to figure out
-	// local & remote AZ.
-	if labeler.awsAZ != nil {
-		// If it is AWS, use subnet IP ranges to figure out AZ. First reset the
-		// availability zone set previously by node label.
-		data.LocalAvailabilityZone = ""
-		data.RemoteAvailabilityZone = ""
-		// Then try finding the AZ from the AWS AZ info provider.
-		localAZ := labeler.awsAZ.findAZDetail(localInfo.ip)
-		if localAZ.azID != "" {
-			data.LocalAvailabilityZone = localAZ.azID
-		}
-		if remoteInfo.ip.IsPrivate() || remoteInfo.ip.IsLinkLocalUnicast() || remoteInfo.ip.IsLinkLocalMulticast() || remoteInfo.ip.IsLoopback() {
-			remoteAZ := labeler.awsAZ.findAZDetail(remoteInfo.ip)
-			if remoteAZ.azID != "" {
-				data.RemoteAvailabilityZone = remoteAZ.azID
-			}
-		}
-	}
-
-	data.RemoteCell = "UNKNOWN"
-	data.RemoteClusterType = "UNKNOWN"
+	data.RemoteCluster = "UNKNOWN"
 	return data, nil
 }
 

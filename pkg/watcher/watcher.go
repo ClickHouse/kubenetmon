@@ -49,7 +49,7 @@ type Watcher struct {
 
 // NewWatcher creates a new Watcher and checks that it has
 // connectivity to the cluster API.
-func NewWatcher(clusterName string, clientset kubernetes.Interface) (*Watcher, error) {
+func NewWatcher(cluster string, clientset kubernetes.Interface) (*Watcher, error) {
 	// Create an informer factory.
 	factoryStopChannel := make(chan struct{})
 	factory := informers.NewSharedInformerFactory(clientset, 10*time.Minute)
@@ -108,7 +108,7 @@ func NewWatcher(clusterName string, clientset kubernetes.Interface) (*Watcher, e
 		len(podInformer.GetStore().List()),
 		len(nodeInformer.GetStore().List()),
 		len(serviceInformer.GetStore().List()),
-		clusterName,
+		cluster,
 	)
 
 	return &Watcher{

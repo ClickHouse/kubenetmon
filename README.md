@@ -31,9 +31,9 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 
 helm install prometheus-operator prometheus-community/kube-prometheus-stack
 
-helm template kubenetmon-server ./kubenetmon/deploy/helm/kubenetmon-server -f ./kubenetmon/deploy/helm/kubenetmon-server/values.yaml --set image.tag=1.0.0 --set inserter.batchSize=10 --set inserter.disableTLS=true --set inserter.skipPing=true --set inserter.clusterType=data-plane --namespace=kubenetmon-server | kubectl apply -n kubenetmon-server -f -
+helm template kubenetmon-server ./deploy/helm/kubenetmon-server -f ./deploy/helm/kubenetmon-server/values.yaml --set image.tag=1.0.0 --set inserter.batchSize=10 --set inserter.disableTLS=true --set inserter.skipPing=true --set region=us-west-2 --set cluster=cluster --set environment=development --set cloud=aws --namespace=kubenetmon-server | kubectl apply -n kubenetmon-server -f -
 
-helm template kubenetmon-agent ./kubenetmon/deploy/helm/kubenetmon-agent -f ./kubenetmon/deploy/helm/kubenetmon-agent/values.yaml --set image.tag=1.0.0 --namespace=kubenetmon-agent | kubectl apply -n kubenetmon-agent -f -
+helm template kubenetmon-agent ./deploy/helm/kubenetmon-agent -f ./deploy/helm/kubenetmon-agent/values.yaml --set image.tag=1.0.0 --set configuration.skipConntrackSanityCheck=true --namespace=kubenetmon-agent | kubectl apply -n kubenetmon-agent -f -
 ```
 
 At this point, `kubenetmon-server` and `kubenetmon-agent` will be installed. They won't yet run, however. `kubenetmon-agent` needs conntrack counters to be enabled on each machine to start up, so you will want to shell into your kind nodes and enable conntrack accounting:
@@ -58,5 +58,5 @@ To run unit tests, you can simply run `make test`. Note that not all packages wi
 Visual Studio Code allows you to do development and testing on a remote machine if you want to run tests whenever you make changes.
 
 ## Deploying
-`kubenetmon` is built into a multiarch Docker image that runs on both `arm` and `x86` nodes. Both `kubenetmon-server` and `kubenetmon-agent` binaries are packaged into the image. A new image is built for every `kubenetmon` change merged into main and deployed with ArgoCD (automatically for AWS dev, manually via `data-plane-configuration` in all other cases).
+`kubenetmon` is built into a multiarch Docker image that runs on both `arm` and `x86` nodes. Both `kubenetmon-server` and `kubenetmon-agent` binaries are packaged into the image.
 

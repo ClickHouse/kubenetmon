@@ -11,9 +11,9 @@ import (
 	"github.com/ti-mo/conntrack"
 	"go.uber.org/mock/gomock"
 
-	mock_collector "github.com/clickhouse.com/kubenetmon/pkg/collector/mock"
-	pb "github.com/clickhouse.com/kubenetmon/pkg/grpc"
-	mock_flow_handler "github.com/clickhouse.com/kubenetmon/pkg/grpc/mock"
+	mock_collector "github.com/ClickHouse/kubenetmon/pkg/collector/mock"
+	pb "github.com/ClickHouse/kubenetmon/pkg/grpc"
+	mock_flow_handler "github.com/ClickHouse/kubenetmon/pkg/grpc/mock"
 )
 
 var errFake = errors.New("fake error")

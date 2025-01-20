@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/clickhouse/kubenetmon/pkg/grpc";
+option go_package = "github.com/ClickHouse/kubenetmon/pkg/grpc";
 
 package grpc;
 

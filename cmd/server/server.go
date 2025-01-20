@@ -5,9 +5,9 @@ import (
 	"io"
 	"time"
 
-	pb "github.com/clickhouse.com/kubenetmon/pkg/grpc"
-	"github.com/clickhouse.com/kubenetmon/pkg/inserter"
-	"github.com/clickhouse.com/kubenetmon/pkg/labeler"
+	pb "github.com/ClickHouse/kubenetmon/pkg/grpc"
+	"github.com/ClickHouse/kubenetmon/pkg/inserter"
+	"github.com/ClickHouse/kubenetmon/pkg/labeler"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog/log"

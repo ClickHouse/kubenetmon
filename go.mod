@@ -1,13 +1,10 @@
-module github.com/clickhouse.com/kubenetmon
+module github.com/ClickHouse/kubenetmon
 
 go 1.23
 
 toolchain go1.23.0
 
-replace clickhouse.com/data-plane-platform => github.com/clickhouse/data-plane-application/platform v0.0.0-20240716091026-f78c0aa64717
-
 require (
-	clickhouse.com/data-plane-platform v0.0.0-00010101000000-000000000000
 	github.com/ClickHouse/clickhouse-go/v2 v2.26.0
 	github.com/PraserX/ipconv v1.2.0
 	github.com/google/uuid v1.6.0
@@ -66,7 +63,6 @@ require (
 	github.com/seancfoley/bintree v1.3.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/ti-mo/netfilter v0.5.0 // indirect
 	go.opentelemetry.io/otel v1.26.0 // indirect
 	go.opentelemetry.io/otel/trace v1.26.0 // indirect

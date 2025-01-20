@@ -18,14 +18,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"clickhouse.com/data-plane-platform/meta"
-
-	"github.com/clickhouse.com/kubenetmon/pkg/collector"
-	pb "github.com/clickhouse.com/kubenetmon/pkg/grpc"
+	"github.com/ClickHouse/kubenetmon/pkg/collector"
+	pb "github.com/ClickHouse/kubenetmon/pkg/grpc"
 )
 
 func main() {
-	meta.PrintVersionZerolog(&log.Logger, version.Info)
 	log.Info().Msgf("GOMAXPROCS: %d\n", runtime.GOMAXPROCS(0))
 	log.Info().Msgf("GOMEMLIMIT: %d\n", debug.SetMemoryLimit(-1))
 
@@ -43,14 +40,14 @@ func main() {
 		log.Fatal().Err(err).Msg("Can't parse COLLECTION_INTERVAL")
 	}
 
-	kubenetmonServerHost, ok := os.LookupEnv("kubenetmon_SERVER_SERVICE_HOST")
+	kubenetmonServerHost, ok := os.LookupEnv("KUBENETMON_SERVER_SERVICE_HOST")
 	if !ok {
-		log.Fatal().Err(errors.New("kubenetmon_SERVER_SERVICE_HOST should not be empty")).Send()
+		log.Fatal().Err(errors.New("KUBENETMON_SERVER_SERVICE_HOST should not be empty")).Send()
 	}
 
-	kubenetmonServerPort, ok := os.LookupEnv("kubenetmon_SERVER_SERVICE_PORT")
+	kubenetmonServerPort, ok := os.LookupEnv("KUBENETMON_SERVER_SERVICE_PORT")
 	if !ok {
-		log.Fatal().Err(errors.New("kubenetmon_SERVER_SERVICE_PORT should not be empty")).Send()
+		log.Fatal().Err(errors.New("KUBENETMON_SERVER_SERVICE_PORT should not be empty")).Send()
 	}
 
 	skipConntrackSanityCheckStr, ok := os.LookupEnv("SKIP_CONNTRACK_SANITY_CHECK")

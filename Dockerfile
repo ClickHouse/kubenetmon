@@ -15,7 +15,6 @@ RUN [[ $(ls -1 vendor/ | wc -l) -gt 0 ]] || (echo "Expected 'vendor' dependencie
 # Copy the go source
 COPY cmd/ cmd/
 COPY pkg/ pkg/
-COPY internal/ internal/
 
 # Build
 ARG VERSION=dev

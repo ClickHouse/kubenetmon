@@ -7,7 +7,6 @@ automountServiceAccountToken: true
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
-environment: development
 
 serviceMonitors:
   enabled: false
@@ -47,33 +46,20 @@ configuration: {}
 
 secrets: {}
 
-# Additional clusters to pull labels from. The local cluster shouldn't be listed
-# here. IPs that can't be labelled with local cluster's data are cross-checked
-# against the clusters in this list one by one.
-clusterCredentials: {}
-# clusterCredentials:
-#   proxy:
-#     certificateAuthorityDataBase64: ""
-#     server: ""
-#     tokenBase64: ""
-
+environment: ""
+cluster: ""
 cloud: ""
-awsSubnetCidrs: ""
+region: ""
 maxGRPCConnectionAgeSeconds: 300
 
 inserter:
-  environment: ""
-  region: ""
-  clusterType: ""
-  cell: ""
-  numInserterWorkers: 20
-
   enabled: true
   database: "default"
   endpoint: "clickhouse.default.svc.cluster.local:9000"
   username: "default"
   password: ""
 
+  numInserterWorkers: 20
   dialTimeout: 30s
   maxIdleConnections: 50
   batchSize: 15000

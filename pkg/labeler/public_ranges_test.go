@@ -8,14 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewEnvironment(t *testing.T) {
-	_, err := NewEnvironment("ddd")
-	assert.Error(t, err)
-
-	_, err = NewEnvironment("development")
-	assert.NoError(t, err)
-}
-
 func TestNewCloud(t *testing.T) {
 	_, err := NewCloud("abc")
 	assert.Error(t, err)

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/clickhouse.com/kubenetmon/pkg/grpc"
+	pb "github.com/ClickHouse/kubenetmon/pkg/grpc"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog/log"

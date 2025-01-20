@@ -7,9 +7,9 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/clickhouse.com/kubenetmon/pkg/grpc"
-	"github.com/clickhouse.com/kubenetmon/pkg/watcher"
-	mock_watcher "github.com/clickhouse.com/kubenetmon/pkg/watcher/mock"
+	"github.com/ClickHouse/kubenetmon/pkg/grpc"
+	"github.com/ClickHouse/kubenetmon/pkg/watcher"
+	mock_watcher "github.com/ClickHouse/kubenetmon/pkg/watcher/mock"
 	"github.com/seancfoley/ipaddress-go/ipaddr"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -21,7 +21,7 @@ var errFake = errors.New("fake error")
 
 func TestNewLabeler(t *testing.T) {
 	t.Parallel()
-	assert.NotNil(t, NewLabeler(nil, nil, nil, false))
+	assert.NotNil(t, NewLabeler(nil, nil, false))
 }
 
 func TestIsNodeFlow(t *testing.T) {
@@ -36,7 +36,7 @@ func TestIsNodeFlow(t *testing.T) {
 
 		mockWatcher := mock_watcher.NewWatcher(ctrl)
 		mockWatcher.EXPECT().GetNodeByInternalIP("1.2.3.4").Return(&corev1.Node{}, nil)
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		isNode, err := labeler.isNodeFlow(&grpc.Observation_Flow{
 			Original: &grpc.Observation_Flow_FlowTuple{
 				Source: &grpc.Observation_Flow_FlowTuple_L4Endpoint{
@@ -73,7 +73,7 @@ func TestIsNodeFlow(t *testing.T) {
 		mockWatcher := mock_watcher.NewWatcher(ctrl)
 		mockWatcher.EXPECT().GetNodeByInternalIP("1.2.3.4").Return(nil, nil)
 		mockWatcher.EXPECT().GetNodeByInternalIP("4.3.2.1").Return(&corev1.Node{}, nil)
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		isNode, err := labeler.isNodeFlow(&grpc.Observation_Flow{
 			Original: &grpc.Observation_Flow_FlowTuple{
 				Source: &grpc.Observation_Flow_FlowTuple_L4Endpoint{
@@ -110,7 +110,7 @@ func TestIsNodeFlow(t *testing.T) {
 		mockWatcher := mock_watcher.NewWatcher(ctrl)
 		mockWatcher.EXPECT().GetNodeByInternalIP("1.2.3.4").Return(nil, nil)
 		mockWatcher.EXPECT().GetNodeByInternalIP("4.3.2.1").Return(&corev1.Node{}, errFake)
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		isNode, err := labeler.isNodeFlow(&grpc.Observation_Flow{
 			Original: &grpc.Observation_Flow_FlowTuple{
 				Source: &grpc.Observation_Flow_FlowTuple_L4Endpoint{
@@ -147,7 +147,7 @@ func TestIsNodeFlow(t *testing.T) {
 		mockWatcher := mock_watcher.NewWatcher(ctrl)
 		mockWatcher.EXPECT().GetNodeByInternalIP("1.2.3.4").Return(nil, nil)
 		mockWatcher.EXPECT().GetNodeByInternalIP("4.3.2.1").Return(&corev1.Node{}, nil)
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		isNode, err := labeler.isNodeFlow(&grpc.Observation_Flow{
 			Original: &grpc.Observation_Flow_FlowTuple{
 				Source: &grpc.Observation_Flow_FlowTuple_L4Endpoint{
@@ -184,7 +184,7 @@ func TestIsNodeFlow(t *testing.T) {
 		mockWatcher := mock_watcher.NewWatcher(ctrl)
 		mockWatcher.EXPECT().GetNodeByInternalIP("1.2.3.4").Return(nil, nil)
 		mockWatcher.EXPECT().GetNodeByInternalIP("0.0.0.0").Return(nil, nil)
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		isNode, err := labeler.isNodeFlow(&grpc.Observation_Flow{
 			Original: &grpc.Observation_Flow_FlowTuple{
 				Source: &grpc.Observation_Flow_FlowTuple_L4Endpoint{
@@ -230,7 +230,7 @@ func TestLabelFlow(t *testing.T) {
 			cloud:                AWS,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		data, err := labeler.LabelFlow("", &grpc.Observation_Flow{
 			Proto: IP_PROTO_UDP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -274,7 +274,7 @@ func TestLabelFlow(t *testing.T) {
 			cloud:                AWS,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, true)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, true)
 		data, err := labeler.LabelFlow("", &grpc.Observation_Flow{
 			Proto: IP_PROTO_UDP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -302,7 +302,7 @@ func TestLabelFlow(t *testing.T) {
 			cloud:                AWS,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		data, err := labeler.LabelFlow("", &grpc.Observation_Flow{
 			Proto: IP_PROTO_UDP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -382,7 +382,7 @@ func TestLabelFlow(t *testing.T) {
 			cloud:                AWS,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_UDP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -421,7 +421,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:             replyPackets,
 			BytesIn:               replyBytes,
 			PacketsOut:            origPackets,
@@ -438,8 +438,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteCloud:           "",
 			RemoteIP:              origDstIP,
 			RemotePort:            origDstPort,
-			RemoteClusterType:     "UNKNOWN",
-			RemoteCell:            "UNKNOWN",
+			RemoteCluster:         "UNKNOWN",
 			ConnectionClass:       PublicInternet,
 			ConnectionFlags:       make(ConnectionFlags),
 		}, *data)
@@ -507,7 +506,7 @@ func TestLabelFlow(t *testing.T) {
 			cloud:                Azure,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_UDP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -546,7 +545,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:             replyPackets,
 			BytesIn:               replyBytes,
 			PacketsOut:            origPackets,
@@ -563,8 +562,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteCloud:           "",
 			RemoteIP:              origDstIP,
 			RemotePort:            origDstPort,
-			RemoteClusterType:     "UNKNOWN",
-			RemoteCell:            "UNKNOWN",
+			RemoteCluster:         "UNKNOWN",
 			ConnectionClass:       PublicInternet,
 			ConnectionFlags:       make(ConnectionFlags),
 		}, *data)
@@ -648,7 +646,7 @@ func TestLabelFlow(t *testing.T) {
 			cloud:                AWS,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, true)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, true)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_TCP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -687,7 +685,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:              origPackets,
 			BytesIn:                origBytes,
 			PacketsOut:             replyPackets,
@@ -710,8 +708,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteNamespace:        remoteNamespace,
 			RemotePod:              remotePod,
 			RemoteApp:              remoteApp,
-			RemoteClusterType:      "UNKNOWN",
-			RemoteCell:             "UNKNOWN",
+			RemoteCluster:          "UNKNOWN",
 			ConnectionClass:        IntraVPC,
 			ConnectionFlags:        make(ConnectionFlags),
 		}, *data)
@@ -789,7 +786,7 @@ func TestLabelFlow(t *testing.T) {
 			cloud:                AWS,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_TCP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -828,7 +825,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:              replyPackets,
 			BytesIn:                replyBytes,
 			PacketsOut:             origPackets,
@@ -851,8 +848,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteNamespace:        remoteNamespace,
 			RemotePod:              remotePod,
 			RemoteApp:              remoteApp,
-			RemoteClusterType:      "UNKNOWN",
-			RemoteCell:             "UNKNOWN",
+			RemoteCluster:          "UNKNOWN",
 			ConnectionClass:        IntraVPC,
 			ConnectionFlags:        make(ConnectionFlags),
 		}, *data)
@@ -870,7 +866,7 @@ func TestLabelFlow(t *testing.T) {
 			cloud:                AWS,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		data, err := labeler.LabelFlow("", &grpc.Observation_Flow{
 			Proto:    IP_PROTO_TCP,
 			Original: &grpc.Observation_Flow_FlowTuple{},
@@ -960,25 +956,11 @@ func TestLabelFlow(t *testing.T) {
 				"topology.kubernetes.io/zone": remoteAvailabilityZone,
 			}}}, nil)
 
-		awsAZInfoProvider := &AWSAZInfoProvider{
-			subnetPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
-		}
-		awsAZInfoProvider.subnetPrefixes = map[ipaddr.IPv4AddressKey]azDetail{
-			ipaddr.NewIPAddressString("10.0.0.0/16").GetAddress().ToIPv4().ToKey(): {
-				azID: localAvailabilityZoneID,
-			},
-			ipaddr.NewIPAddressString("10.3.0.0/16").GetAddress().ToIPv4().ToKey(): {
-				azID: remoteAvailabilityZoneID,
-			},
-		}
-		awsAZInfoProvider.subnetPrefixesTrie.Add(ipaddr.NewIPAddressString("10.0.0.0/16").GetAddress().ToIPv4())
-		awsAZInfoProvider.subnetPrefixesTrie.Add(ipaddr.NewIPAddressString("10.3.0.0/16").GetAddress().ToIPv4())
-
 		noopRemoteLabeler := &RemoteLabeler{
 			cloud:                AWS,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, awsAZInfoProvider, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_TCP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -1017,7 +999,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:              replyPackets,
 			BytesIn:                replyBytes,
 			PacketsOut:             origPackets,
@@ -1040,8 +1022,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteNamespace:        remoteNamespace,
 			RemotePod:              remotePod,
 			RemoteApp:              remoteApp,
-			RemoteClusterType:      "UNKNOWN",
-			RemoteCell:             "UNKNOWN",
+			RemoteCluster:          "UNKNOWN",
 			ConnectionClass:        IntraVPC,
 			ConnectionFlags:        make(ConnectionFlags),
 		}, *data)
@@ -1129,7 +1110,7 @@ func TestLabelFlow(t *testing.T) {
 			cloud:                Azure,
 			remoteIPPrefixesTrie: ipaddr.NewIPv4AddressTrie(),
 		}
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, noopRemoteLabeler, false)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_TCP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -1168,7 +1149,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:              replyPackets,
 			BytesIn:                replyBytes,
 			PacketsOut:             origPackets,
@@ -1191,8 +1172,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteNamespace:        remoteNamespace,
 			RemotePod:              remotePod,
 			RemoteApp:              remoteApp,
-			RemoteClusterType:      "UNKNOWN",
-			RemoteCell:             "UNKNOWN",
+			RemoteCluster:          "UNKNOWN",
 			ConnectionClass:        IntraVPC,
 			ConnectionFlags:        make(ConnectionFlags),
 		}, *data)
@@ -1282,7 +1262,7 @@ func TestLabelFlow(t *testing.T) {
 			},
 		}, nil)
 
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, remoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, remoteLabeler, false)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_UDP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -1321,7 +1301,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:             replyPackets,
 			BytesIn:               replyBytes,
 			PacketsOut:            origPackets,
@@ -1340,8 +1320,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteCloudService:    remoteCloudService,
 			RemoteIP:              origDstIP,
 			RemotePort:            origDstPort,
-			RemoteClusterType:     "UNKNOWN",
-			RemoteCell:            "UNKNOWN",
+			RemoteCluster:         "UNKNOWN",
 			ConnectionClass:       InterRegion,
 			ConnectionFlags:       make(ConnectionFlags),
 		}, *data)
@@ -1431,7 +1410,7 @@ func TestLabelFlow(t *testing.T) {
 			},
 		}, nil)
 
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, remoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, remoteLabeler, false)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_UDP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -1470,7 +1449,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:             replyPackets,
 			BytesIn:               replyBytes,
 			PacketsOut:            origPackets,
@@ -1489,8 +1468,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteCloudService:    remoteCloudService,
 			RemoteIP:              origDstIP,
 			RemotePort:            origDstPort,
-			RemoteClusterType:     "UNKNOWN",
-			RemoteCell:            "UNKNOWN",
+			RemoteCluster:         "UNKNOWN",
 			ConnectionClass:       IntraRegion,
 			ConnectionFlags:       make(ConnectionFlags),
 		}, *data)
@@ -1588,7 +1566,7 @@ func TestLabelFlow(t *testing.T) {
 			},
 		}, nil)
 
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, remoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, remoteLabeler, false)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_UDP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -1627,7 +1605,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:             replyPackets,
 			BytesIn:               replyBytes,
 			PacketsOut:            origPackets,
@@ -1646,8 +1624,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteCloudService:    remoteCloudService,
 			RemoteIP:              origDstIP,
 			RemotePort:            origDstPort,
-			RemoteClusterType:     "UNKNOWN",
-			RemoteCell:            "UNKNOWN",
+			RemoteCluster:         "UNKNOWN",
 			ConnectionClass:       IntraRegion,
 			ConnectionFlags:       make(ConnectionFlags),
 		}, *data)
@@ -1732,7 +1709,7 @@ func TestLabelFlow(t *testing.T) {
 			},
 		}, nil)
 
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, remoteLabeler, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, remoteLabeler, false)
 		data, err := labeler.LabelFlow(localNode, &grpc.Observation_Flow{
 			Proto: IP_PROTO_UDP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -1771,7 +1748,7 @@ func TestLabelFlow(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		assert.Equal(t, kubenetmonata{
+		assert.Equal(t, FlowData{
 			PacketsIn:             replyPackets,
 			BytesIn:               replyBytes,
 			PacketsOut:            origPackets,
@@ -1790,8 +1767,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteCloudService:    "googlecloud",
 			RemoteIP:              origDstIP,
 			RemotePort:            origDstPort,
-			RemoteClusterType:     "UNKNOWN",
-			RemoteCell:            "UNKNOWN",
+			RemoteCluster:         "UNKNOWN",
 			ConnectionClass:       InterRegion,
 			ConnectionFlags:       make(ConnectionFlags),
 		}, *data)
@@ -1820,7 +1796,7 @@ func TestGetEndpointsForFlow(t *testing.T) {
 			replyDstPort uint16 = 4
 		)
 
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, false)
 		srcEndpointInfo, dstEndpointInfo, err := labeler.getEndpointsForFlow(&grpc.Observation_Flow{
 			Proto: IP_PROTO_TCP,
 			Original: &grpc.Observation_Flow_FlowTuple{
@@ -1866,7 +1842,7 @@ func TestGetEndpointsForFlow(t *testing.T) {
 
 		mockWatcher := mock_watcher.NewWatcher(ctrl)
 		mockWatcher.EXPECT().GetPodsByIP(gomock.Any()).Return(nil, errFake)
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, false)
 
 		srcEndpointInfo, dstEndpointInfo, err := labeler.getEndpointsForFlow(&grpc.Observation_Flow{})
 		assert.Error(t, err)
@@ -1891,7 +1867,7 @@ func TestGetEndpointsForFlow(t *testing.T) {
 		}, nil)
 		mockWatcher.EXPECT().GetPodsByIP(gomock.Any()).Return(nil, nil)
 
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, false)
 		srcEndpointInfo, dstEndpointInfo, err := labeler.getEndpointsForFlow(&grpc.Observation_Flow{
 			Original: &grpc.Observation_Flow_FlowTuple{
 				Source: &grpc.Observation_Flow_FlowTuple_L4Endpoint{
@@ -1926,7 +1902,7 @@ func TestGetEndpointsForFlow(t *testing.T) {
 		}, nil)
 		mockWatcher.EXPECT().GetPodsByIP(gomock.Any()).Return(nil, nil)
 
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, false)
 		srcEndpointInfo, dstEndpointInfo, err := labeler.getEndpointsForFlow(&grpc.Observation_Flow{
 			Original: &grpc.Observation_Flow_FlowTuple{
 				Source: &grpc.Observation_Flow_FlowTuple_L4Endpoint{
@@ -1968,7 +1944,7 @@ func TestGetEndpointsForFlow(t *testing.T) {
 		}, nil)
 		mockWatcher.EXPECT().GetPodsByIP(gomock.Any()).Return(nil, nil)
 
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, false)
 		srcEndpointInfo, dstEndpointInfo, err := labeler.getEndpointsForFlow(&grpc.Observation_Flow{
 			Original: &grpc.Observation_Flow_FlowTuple{
 				Destination: &grpc.Observation_Flow_FlowTuple_L4Endpoint{
@@ -2010,7 +1986,7 @@ func TestGetEndpointsForFlow(t *testing.T) {
 		}, nil)
 		mockWatcher.EXPECT().GetPodsByIP(gomock.Any()).Return(nil, nil)
 
-		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, nil, false)
+		labeler := NewLabeler([]watcher.WatcherInterface{mockWatcher}, nil, false)
 		srcEndpointInfo, dstEndpointInfo, err := labeler.getEndpointsForFlow(&grpc.Observation_Flow{
 			Original: &grpc.Observation_Flow_FlowTuple{
 				Destination: &grpc.Observation_Flow_FlowTuple_L4Endpoint{
@@ -2043,7 +2019,7 @@ func TestGetFlowType(t *testing.T) {
 	t.Run("Should return betweenPodOnNode for traffic between pods on the node", func(t *testing.T) {
 		t.Parallel()
 
-		labeler := NewLabeler(nil, nil, nil, false)
+		labeler := NewLabeler(nil, nil, false)
 		flowType := labeler.getFlowType(localNodeName, endpointInfo{
 			pod: &corev1.Pod{
 				Spec: corev1.PodSpec{
@@ -2064,7 +2040,7 @@ func TestGetFlowType(t *testing.T) {
 	t.Run("Should return fromPodOnNode for traffic from a pod on the node", func(t *testing.T) {
 		t.Parallel()
 
-		labeler := NewLabeler(nil, nil, nil, false)
+		labeler := NewLabeler(nil, nil, false)
 		flowType := labeler.getFlowType(localNodeName, endpointInfo{
 			pod: &corev1.Pod{
 				Spec: corev1.PodSpec{
@@ -2079,7 +2055,7 @@ func TestGetFlowType(t *testing.T) {
 	t.Run("Should return toPodOnNode for traffic to pod on a node", func(t *testing.T) {
 		t.Parallel()
 
-		labeler := NewLabeler(nil, nil, nil, false)
+		labeler := NewLabeler(nil, nil, false)
 		flowType := labeler.getFlowType(localNodeName, endpointInfo{}, endpointInfo{
 			pod: &corev1.Pod{
 				Spec: corev1.PodSpec{
@@ -2094,7 +2070,7 @@ func TestGetFlowType(t *testing.T) {
 	t.Run("Should return fromPodOnNode when seeing uknown source and destination that is on another node", func(t *testing.T) {
 		t.Parallel()
 
-		labeler := NewLabeler(nil, nil, nil, false)
+		labeler := NewLabeler(nil, nil, false)
 		flowType := labeler.getFlowType(localNodeName, endpointInfo{}, endpointInfo{
 			pod: &corev1.Pod{
 				Spec: corev1.PodSpec{
@@ -2109,7 +2085,7 @@ func TestGetFlowType(t *testing.T) {
 	t.Run("Should return toPodOnNode when seeing uknown destination but source that is on another node", func(t *testing.T) {
 		t.Parallel()
 
-		labeler := NewLabeler(nil, nil, nil, false)
+		labeler := NewLabeler(nil, nil, false)
 		flowType := labeler.getFlowType(localNodeName, endpointInfo{
 			pod: &corev1.Pod{
 				Spec: corev1.PodSpec{
@@ -2124,7 +2100,7 @@ func TestGetFlowType(t *testing.T) {
 	t.Run("Should return unknown in other cases", func(t *testing.T) {
 		t.Parallel()
 
-		labeler := NewLabeler(nil, nil, nil, false)
+		labeler := NewLabeler(nil, nil, false)
 		flowType := labeler.getFlowType(localNodeName, endpointInfo{}, endpointInfo{})
 		assert.Equal(t, unknown, flowType)
 	})

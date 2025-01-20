@@ -141,7 +141,7 @@ func (w *worker) processRecord(observation Observation) {
 		resetTimer(w.batchExpirationTimer, w.batchSendTimeout)
 	}
 	w.batch = append(w.batch,
-		fmt.Sprintf("('%v', '%v', %v, '%v', '%v', '%v', %v, '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', %v, %v)",
+		fmt.Sprintf("('%v', '%v', %v, '%v', '%v', '%v', %v, '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', %v, %v)",
 			day,
 			minute,
 			60,
@@ -155,8 +155,7 @@ func (w *worker) processRecord(observation Observation) {
 
 			w.runtimeInfo.Cloud,
 			w.runtimeInfo.Region,
-			w.runtimeInfo.ClusterType,
-			w.runtimeInfo.Cell,
+			w.runtimeInfo.Cluster,
 			observation.Flow.LocalAvailabilityZone,
 			observation.Flow.LocalNode,
 			observation.Flow.LocalInstanceID,
@@ -168,8 +167,7 @@ func (w *worker) processRecord(observation Observation) {
 
 			observation.Flow.RemoteCloud,
 			observation.Flow.RemoteRegion,
-			observation.Flow.RemoteClusterType,
-			observation.Flow.RemoteCell,
+			observation.Flow.RemoteCluster,
 			observation.Flow.RemoteAvailabilityZone,
 			observation.Flow.RemoteNode,
 			observation.Flow.RemoteInstanceID,
@@ -183,7 +181,7 @@ func (w *worker) processRecord(observation Observation) {
 			observation.Flow.BytesOut,
 			observation.Flow.PacketsOut))
 	w.batch = append(w.batch,
-		fmt.Sprintf("('%v', '%v', %v, '%v', '%v', '%v', %v, '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', %v, %v)",
+		fmt.Sprintf("('%v', '%v', %v, '%v', '%v', '%v', %v, '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', '%v', %v, %v)",
 			day,
 			minute,
 			60,
@@ -197,8 +195,7 @@ func (w *worker) processRecord(observation Observation) {
 
 			w.runtimeInfo.Cloud,
 			w.runtimeInfo.Region,
-			w.runtimeInfo.ClusterType,
-			w.runtimeInfo.Cell,
+			w.runtimeInfo.Cluster,
 			observation.Flow.LocalAvailabilityZone,
 			observation.Flow.LocalNode,
 			observation.Flow.LocalInstanceID,
@@ -210,8 +207,7 @@ func (w *worker) processRecord(observation Observation) {
 
 			observation.Flow.RemoteCloud,
 			observation.Flow.RemoteRegion,
-			observation.Flow.RemoteClusterType,
-			observation.Flow.RemoteCell,
+			observation.Flow.RemoteCluster,
 			observation.Flow.RemoteAvailabilityZone,
 			observation.Flow.RemoteNode,
 			observation.Flow.RemoteInstanceID,
@@ -263,8 +259,7 @@ INSERT INTO default.network_flows_0
 	direction,
 	localCloud,
 	localRegion,
-	localClusterType,
-	localCell,
+	localCluster,
 	localAvailabilityZone,
 	localNode, 
 	localInstanceID,
@@ -275,8 +270,7 @@ INSERT INTO default.network_flows_0
 	localApp,
 	remoteCloud,
 	remoteRegion,
-	remoteClusterType,
-	remoteCell,
+	remoteCluster,
 	remoteAvailabilityZone,
 	remoteNode,
 	remoteInstanceID,

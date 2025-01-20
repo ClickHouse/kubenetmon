@@ -134,27 +134,27 @@ func NewRemoteLabeler(localRegion string, localCloud Cloud, environment Environm
 	return remoteLabeler, nil
 }
 
-func (l *RemoteLabeler) labelRemote(remoteEndpoint *endpointInfo, kubenetmonata *kubenetmonata) error {
+func (l *RemoteLabeler) labelRemote(remoteEndpoint *endpointInfo, FlowData *FlowData) error {
 	remoteIPAddress := ipaddr.NewIPAddressFromNetNetIPAddr(remoteEndpoint.ip).ToIPv4()
 	// If remote endpoint is private, assume it is the same region since right
 	// now we don't have cross region peering.
 	if remoteIPAddress.IsPrivate() || remoteIPAddress.IsLocal() || remoteIPAddress.IsLoopback() {
-		kubenetmonata.RemoteCloud = l.cloud
-		kubenetmonata.RemoteRegion = l.region
-		kubenetmonata.ConnectionClass = IntraVPC
+		FlowData.RemoteCloud = l.cloud
+		FlowData.RemoteRegion = l.region
+		FlowData.ConnectionClass = IntraVPC
 		return nil
 	}
 
 	// Otherwise it is remote IP.
 	remoteDetail := l.findRemoteDetail(remoteIPAddress)
-	kubenetmonata.RemoteRegion = remoteDetail.region
-	kubenetmonata.RemoteCloudService = remoteDetail.service
-	kubenetmonata.RemoteCloud = remoteDetail.cloud
+	FlowData.RemoteRegion = remoteDetail.region
+	FlowData.RemoteCloudService = remoteDetail.service
+	FlowData.RemoteCloud = remoteDetail.cloud
 
 	if remoteDetail.cloud == l.cloud {
 		if remoteDetail.region == "" {
 			errorCounter.WithLabelValues([]string{"intra_cloud_empty_region"}...).Inc()
-			return fmt.Errorf("found a connection to an undetermined region in the same %v cloud: remoteEndpoint: (%v), kubenetmonata: (%v)", l.cloud, *remoteEndpoint, *kubenetmonata)
+			return fmt.Errorf("found a connection to an undetermined region in the same %v cloud: remoteEndpoint: (%v), FlowData: (%v)", l.cloud, *remoteEndpoint, *FlowData)
 		}
 
 		if (l.cloud == AWS && remoteDetail.region == AmazonGlobalRegion) || (l.cloud == GCP && remoteDetail.region == GoogleGlobalRegion) || (l.cloud == Azure && remoteDetail.region == AzureGlobalRegion) {
@@ -165,16 +165,16 @@ func (l *RemoteLabeler) labelRemote(remoteEndpoint *endpointInfo, kubenetmonata 
 			// as staying in the same region (even though it technically can be
 			// going to a different region, but we assume the least costly and
 			// most likely scenario).
-			kubenetmonata.ConnectionClass = IntraRegion
+			FlowData.ConnectionClass = IntraRegion
 		} else if remoteDetail.region == l.region {
-			kubenetmonata.ConnectionClass = IntraRegion
+			FlowData.ConnectionClass = IntraRegion
 		} else {
-			kubenetmonata.ConnectionClass = InterRegion
+			FlowData.ConnectionClass = InterRegion
 		}
 	} else {
 		// If the region is empty, remote is somewhere on the public Internet
 		// (or in a different cloud, which is all the same).
-		kubenetmonata.ConnectionClass = PublicInternet
+		FlowData.ConnectionClass = PublicInternet
 	}
 
 	return nil

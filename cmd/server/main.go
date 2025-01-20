@@ -13,15 +13,14 @@ import (
 	"runtime/debug"
 	"strconv"
 
-	"clickhouse.com/data-plane-platform/meta"
 	yaml "gopkg.in/yaml.v3"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	pb "github.com/clickhouse.com/kubenetmon/pkg/grpc"
-	"github.com/clickhouse.com/kubenetmon/pkg/inserter"
-	"github.com/clickhouse.com/kubenetmon/pkg/labeler"
-	"github.com/clickhouse.com/kubenetmon/pkg/watcher"
+	pb "github.com/ClickHouse/kubenetmon/pkg/grpc"
+	"github.com/ClickHouse/kubenetmon/pkg/inserter"
+	"github.com/ClickHouse/kubenetmon/pkg/labeler"
+	"github.com/ClickHouse/kubenetmon/pkg/watcher"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
@@ -69,7 +68,6 @@ func init() {
 }
 
 func main() {
-	meta.PrintVersionZerolog(&log.Logger, version.Info)
 	log.Info().Msgf("GOMAXPROCS: %d\n", runtime.GOMAXPROCS(0))
 	log.Info().Msgf("GOMEMLIMIT: %d\n", debug.SetMemoryLimit(-1))
 
@@ -89,10 +87,7 @@ func main() {
 	}
 	var environment labeler.Environment
 	var err error
-	environment, err = labeler.NewEnvironment(unvalidatedEnvironment)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't accept ENVIRONMENT")
-	}
+	environment = labeler.NewEnvironment(unvalidatedEnvironment)
 
 	region, ok := os.LookupEnv("REGION")
 	if !ok {
@@ -100,14 +95,9 @@ func main() {
 	}
 	region = strings.ToLower(region)
 
-	clusterType, ok := os.LookupEnv("CLUSTER_TYPE")
+	cluster, ok := os.LookupEnv("CLUSTER")
 	if !ok {
-		log.Fatal().Err(errors.New("CLUSTER_TYPE should not be empty")).Send()
-	}
-
-	cell, ok := os.LookupEnv("CELL")
-	if !ok {
-		log.Fatal().Err(errors.New("CELL should not be empty")).Send()
+		log.Fatal().Err(errors.New("CLUSTER should not be empty")).Send()
 	}
 
 	numInserterWorkersStr, ok := os.LookupEnv("NUM_INSERTER_WORKERS")
@@ -153,31 +143,20 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating clientset")
 	}
 
-	localClusterWatcher, err := watcher.NewWatcher(clusterType, clientset)
+	localClusterWatcher, err := watcher.NewWatcher(cluster, clientset)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create a Watcher")
 	}
 
-	// Create watchers for cluster specified in the kubenetmon-server and prepend
-	// them with the local cluster watcher. Watchers are checked one-by-one for
-	// labelling, and the first to find the IP is used.
-	// watchers, err := createWatchers(clientset)
 	allWatchers := []watcher.WatcherInterface{localClusterWatcher}
 	remoteLabeler, err := labeler.NewRemoteLabeler(region, cloud, environment)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create remotelabeler")
 	}
-	var awsAZInfoProvider *labeler.AWSAZInfoProvider
-	if cloud == labeler.AWS {
-		awsAZInfoProvider, err = labeler.NewAWSAZInfoProvider()
-		if err != nil {
-			log.Fatal().Err(err).Msgf("cannot initialize aws az info provider")
-		}
-	}
 
-	labeler := labeler.NewLabeler(allWatchers, remoteLabeler, awsAZInfoProvider, *configMap.IgnoreUDP)
-	runtimeInfo := inserter.RuntimeInfo{Cloud: cloud, Env: environment, Region: region, ClusterType: clusterType, Cell: cell}
-	clickHouseOptions := inserter.ClickHouseOptions{
+	labeler := labeler.NewLabeler(allWatchers, remoteLabeler, *configMap.IgnoreUDP)
+	runtimeInfo := inserter.RuntimeInfo{Cloud: cloud, Env: environment, Region: region, Cluster: cluster}
+	clickhouseOptions := inserter.ClickHouseOptions{
 		Database: configMap.Database,
 		Enabled:  configMap.Enabled,
 
@@ -195,7 +174,7 @@ func main() {
 		DisableTLS: configMap.DisableTLS,
 	}
 
-	inserter, err := inserter.NewInserter(clickHouseOptions, runtimeInfo, int(numInserterWorkers))
+	inserter, err := inserter.NewInserter(clickhouseOptions, runtimeInfo, int(numInserterWorkers))
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create an inserter")
 	}

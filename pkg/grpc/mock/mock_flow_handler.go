@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	grpc "github.com/clickhouse.com/kubenetmon/pkg/grpc"
+	grpc "github.com/ClickHouse/kubenetmon/pkg/grpc"
 	gomock "go.uber.org/mock/gomock"
 	grpc0 "google.golang.org/grpc"
 	metadata "google.golang.org/grpc/metadata"

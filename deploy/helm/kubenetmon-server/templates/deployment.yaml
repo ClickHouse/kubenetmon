@@ -38,17 +38,13 @@ spec:
             - name: GRPC_PORT
               value: "{{ .Values.service.port }}"
             - name: ENVIRONMENT
-              value: "{{ .Values.inserter.environment }}"
+              value: "{{ .Values.environment }}"
             - name: CLOUD
               value: "{{ .Values.cloud }}"
-            - name: AWS_AZ_CIDR_MAP
-              value: "{{ .Values.awsSubnetCidrs }}"
             - name: REGION
-              value: "{{ .Values.inserter.region }}"
-            - name: CLUSTER_TYPE
-              value: "{{ .Values.inserter.clusterType }}"
-            - name: CELL
-              value: "{{ .Values.inserter.cell }}"
+              value: "{{ .Values.region }}"
+            - name: CLUSTER
+              value: "{{ .Values.cluster }}"
             - name: NUM_INSERTER_WORKERS
               value: "{{ .Values.inserter.numInserterWorkers }}"
             - name: MAX_GRPC_CONNECTION_AGE_SECONDS
