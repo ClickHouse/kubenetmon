@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubenetmon-server.fullname" . }}
+  labels:
+    {{- include "kubenetmon-server.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicaCount }}
+  {{- with .Values.deployment.strategy }}
+  strategy:
+    {{- toYaml . | nindent 8 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "kubenetmon-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubenetmon-server.selectorLabels" . | nindent 8 }}
+      annotations:
+        {{- include "kubenetmon-server.configmap.checksum" $ | nindent 8 }}
+        {{- include "kubenetmon-server.secret.checksum" $ | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ include "kubenetmon-server.fullname" . }}
+          env:
+            - name: GOMAXPROCS
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.cpu
+                  divisor: 1
+            - name: GOMEMLIMIT
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.memory
+                  divisor: 1
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - ./server
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: metrics
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+              protocol: TCP
+            - name: grpc
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12  }}
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - mountPath: /etc/kubenetmon-server/config.yaml
+              name: config-volume
+              subPath: config.yaml
+            - mountPath: /etc/clickhouse
+              name: clickhouse-credentials
+      {{- with.Values.deployment.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - configMap:
+            name: config
+          name: config-volume
+        - secret:
+            secretName: clickhouse-credentials
+          name: clickhouse-credentials
+      serviceAccountName: {{ include "kubenetmon-server.fullname" . }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
+      terminationGracePeriodSeconds: 30

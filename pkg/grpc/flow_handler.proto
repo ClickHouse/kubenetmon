@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+option go_package = "github.com/ClickHouse/kubenetmon/pkg/grpc";
+
+package grpc;
+
+// FlowHandler service processes records of flows exposed by conntrack.
+service FlowHandler {
+  // Submit is a streaming RPC that accepts a stream of Observations from
+  // conntrack and returns a summary with the number of processed
+  // observations.
+  rpc Submit(stream Observation) returns (ObservationSummary) {}
+}
+
+// ObservationSummary is a simple message returned once a Submit stream is
+// interrupted.
+message ObservationSummary {
+  // The number of observations processed during the stream.
+  uint32 observation_count = 1;
+}
+
+// Observation describes a conntrack entry, as well as when and where it was
+// taken.
+message Observation {
+  // Flow represents row of conntrack -L output.
+  message Flow {
+    // FlowTuple represents one direction of a connection.
+    message FlowTuple {
+      // L4 Endpoint is an (IP, port) tuple.
+      message L4Endpoint {
+        // IP.
+        oneof ip_addr {
+          // IPv4.
+          fixed32 v4 = 1;
+          // IPv6.
+          bytes v6 = 2;
+        }
+
+        // Port (uint16 doesn't exist in protobuf).
+        uint32 port = 3;
+      }
+
+      // Source tuple.
+      L4Endpoint source = 1;
+      // Destination tuple.
+      L4Endpoint destination = 2;
+      // Number of packets seen from source to destination.
+      uint64 packets = 3;
+      // Number of bytes seen from source to destination.
+      uint64 bytes = 4;
+    }
+
+    uint32 proto = 1;
+    // The original tuple when opening the connection.
+    FlowTuple original = 2;
+    // The reply tuple. In the simple case, this is a mirror image of the
+    // original tuple (with the exception for the packet and byte counters),
+    // but sometimes it is different, e.g. due to NAT.
+    FlowTuple reply = 3;
+  }
+
+  // The flow observed.
+  Flow flow = 1;
+  // The node on which the flow was observed.
+  string node_name = 2;
+  // The timestamp, in Unix seconds, when the flow was observed.
+  uint64 timestamp = 3;
+}

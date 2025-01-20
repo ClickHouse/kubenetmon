@@ -1,0 +1,5 @@
+bin/
+kubeconfig
+cover.out
+.vscode/*
+output/*
