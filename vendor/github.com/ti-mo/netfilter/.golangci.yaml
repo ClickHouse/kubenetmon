@@ -1,0 +1,26 @@
+linters-settings:
+  staticcheck:
+    go: "1.19"
+  unused:
+    go: "1.19"
+
+linters:
+  enable:
+    - goerr113
+    - gofmt
+    - goimports
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unused
+    - goheader
+    - errcheck
+    - gocyclo
+    - revive
+    - gosec
+    - gosimple
+    - lll
+    - misspell
+    - prealloc
+    - typecheck

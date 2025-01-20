@@ -1,0 +1,105 @@
+image:
+  repository: local/kubenetmon
+  pullPolicy: IfNotPresent
+  tag: ""
+
+automountServiceAccountToken: true
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+environment: development
+
+serviceMonitors:
+  enabled: false
+  interval: 30s
+
+metrics:
+  enabled: true
+  port: 8883
+  primaryAlerter: false
+
+service:
+  type: ClusterIP
+  port: 8884
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2512Mi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+nodeSelector: {}
+
+tolerations: []
+
+configuration: {}
+
+secrets: {}
+
+# Additional clusters to pull labels from. The local cluster shouldn't be listed
+# here. IPs that can't be labelled with local cluster's data are cross-checked
+# against the clusters in this list one by one.
+clusterCredentials: {}
+# clusterCredentials:
+#   proxy:
+#     certificateAuthorityDataBase64: ""
+#     server: ""
+#     tokenBase64: ""
+
+cloud: ""
+awsSubnetCidrs: ""
+maxGRPCConnectionAgeSeconds: 300
+
+inserter:
+  environment: ""
+  region: ""
+  clusterType: ""
+  cell: ""
+  numInserterWorkers: 20
+
+  enabled: true
+  database: "default"
+  endpoint: "clickhouse.default.svc.cluster.local:9000"
+  username: "default"
+  password: ""
+
+  dialTimeout: 30s
+  maxIdleConnections: 50
+  batchSize: 15000
+  batchSendTimeout: 30s
+  waitForAsyncInsert: false
+  ignoreUDP: true
+
+  # Skip pinging ClickHouse on startup. This is useful to skip in test
+  # environments where ClickHouse isn't spun up.
+  skipPing: false
+  # Disable TLS to ClickHouse. This is useful for testing.
+  disableTLS: false
+
+deployment:
+  replicaCount: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - kubenetmon-server
+          topologyKey: kubernetes.io/hostname

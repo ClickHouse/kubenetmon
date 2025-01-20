@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-config
+  labels:
+    {{- include "kubenetmon-server.labels" . | nindent 4 }}
+data:
+  clickhouse.yaml: |-
+    enabled: {{ .Values.inserter.enabled }}
+    endpoint: {{ .Values.inserter.endpoint }}
+    username: {{ .Values.inserter.username }}
+    password: {{ .Values.inserter.password }}
+    dial_timeout: {{ .Values.inserter.dialTimeout }}
+    max_idle_connections: {{ .Values.inserter.maxIdleConnections }}
+    batch_size: {{ .Values.inserter.batchSize }}
+    batch_send_timeout: {{ .Values.inserter.batchSendTimeout }}
+    wait_for_async_insert: {{ .Values.inserter.waitForAsyncInsert }}
+    skip_ping: {{ .Values.inserter.skipPing }}
+    disable_tls: {{ .Values.inserter.disableTLS }}
+    ignore_udp: {{ .Values.inserter.ignoreUDP }}
