@@ -1,0 +1,348 @@
+name: kubenetmon
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - kubenetmon/**
+      - .github/workflows/kubenetmon.yaml
+  pull_request:
+    paths:
+      - kubenetmon/**
+      - .github/workflows/kubenetmon.yaml
+  workflow_dispatch:
+    inputs:
+      deploy_to_dev:
+        description: "If true then the application will be deployed, otherwise only build"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      build_and_push:
+        description: "Build and push"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{  github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
+
+      - name: Cache checkout
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/kubenetmon
+          key: kubenetmon-${{ github.sha }}
+
+  goTest:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure working directory cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/kubenetmon
+          key: kubenetmon-${{ github.sha }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+          cache-dependency-path: kubenetmon/go.sum
+
+      - name: Setup Golang private GitHub access
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Run linter
+        working-directory: kubenetmon
+        run: |
+          make lint
+
+      - name: Run tests and generate code coverage report
+        working-directory: kubenetmon
+        run: |
+          make test
+          make test-cover
+
+  BuildDockerImage:
+    needs: [setup, goTest]
+    permissions: write-all
+    runs-on: ubuntu-latest
+    outputs:
+      BUILD_VERSION: ${{ steps.create-version.outputs.BUILD_VERSION }}
+      VERSION_TAG: ${{ steps.create-version.outputs.VERSION_TAG }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          ref: ${{  github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
+      - name: Sanitize branch name and create version
+        id: create-version
+        env:
+          BRANCH: ${{github.ref_name}}
+          RUN_NUMBER: ${{github.run_number}}
+          BASE_VERSION: "1.0.0"
+        run: |
+          # let's simply use the k8s namespace rules (even stricter) and have the same version(-suffix) for everything
+          # lowercase everything and replace all invalid characters with '-' and trim to 60 characters
+          SANITIZED_BRANCH=$(echo -n "${BRANCH}" | tr '[:upper:]' '[:lower:]' | tr -C 'a-z0-9' '-')
+          SANITIZED_BRANCH="${SANITIZED_BRANCH:0:60}"
+
+          BUILD_VERSION="${BASE_VERSION}-${SANITIZED_BRANCH}-${RUN_NUMBER}"
+          echo "BUILD_VERSION=${BUILD_VERSION}" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+
+          VERSION_TAG=1.0.${RUN_NUMBER}
+          echo "VERSION_TAG=${VERSION_TAG}" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+      - name: Setup Golang private GitHub access
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - name: Generate vendor for build
+        run: |
+          cd ${{ github.workspace }}/kubenetmon
+          go mod vendor -v
+      - name: Build & push docker
+        id: docker-build
+        uses: ./.github/actions/docker_build_push
+        with:
+          docker_context: './kubenetmon'
+          build_args: |
+            VERSION=${{steps.create-version.outputs.BUILD_VERSION}}
+            GIT_COMMIT=${{github.sha}}
+          build_platforms: linux/amd64,linux/arm64
+          aws_key_id: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
+          aws_access_key: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
+          docker_tag: ${{steps.create-version.outputs.BUILD_VERSION}}
+          docker_repo: 'kubenetmon'
+          azure_credentials:  ${{ secrets.AZURE_CREDENTIALS }}
+          push_image: ${{ github.ref == 'refs/heads/main' || github.event.inputs.deploy_to_dev == 'true' || github.event.inputs.build_and_push == 'true' }}
+
+  TestE2EHelmChart:
+    needs: BuildDockerImage
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          path: 'src'
+          submodules: true
+          ref: ${{  github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.6.1
+
+      - name: Run chart-testing (lint)
+        run: |
+          cd src
+          ct lint --config .github/workflows/configs/ct.yaml --target-branch ${{ github.event.repository.default_branch }} --chart-dirs kubenetmon/deploy/helm --charts kubenetmon/deploy/helm/kubenetmon-server,kubenetmon/deploy/helm/kubenetmon-agent
+
+      - name: Create kind cluster
+        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event.inputs.deploy_to_dev == 'true' || github.event.inputs.build_and_push == 'true' }}
+        uses: helm/kind-action@v1.10.0
+        with:
+          config: ${{ github.workspace }}/src/.github/workflows/configs/kind-config.yaml
+
+      - name: Set up kubectl
+        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event.inputs.deploy_to_dev == 'true' || github.event.inputs.build_and_push == 'true' }}
+        uses: azure/setup-kubectl@v4
+      - name: Setup Golang private GitHub access
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - name: Generate vendor for build
+        run: |
+          cd ${{ github.workspace }}/src/kubenetmon
+          go mod vendor -v
+      - name: Build Docker image for local testing
+        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event.inputs.deploy_to_dev == 'true' || github.event.inputs.build_and_push == 'true' }}
+        id: docker-local-build
+        uses: docker/build-push-action@v6
+        with:
+          context: './src/kubenetmon'
+          platforms: 'linux/amd64'
+          push: false
+          tags: |
+            local/kubenetmon:${{needs.BuildDockerImage.outputs.BUILD_VERSION}}
+
+      - name: Create required resources for test
+        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event.inputs.deploy_to_dev == 'true' || github.event.inputs.build_and_push == 'true' }}
+        run: |
+          kind load docker-image --name chart-testing local/kubenetmon:${{needs.BuildDockerImage.outputs.BUILD_VERSION}}
+          kubectl create namespace kubenetmon-agent
+          kubectl create namespace kubenetmon-server
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm install prometheus-operator prometheus-community/kube-prometheus-stack
+
+      - name: Run chart-testing (install)
+        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event.inputs.deploy_to_dev == 'true' || github.event.inputs.build_and_push == 'true' }}
+        run: |
+          cd src/kubenetmon/deploy/helm
+          ct install \
+            --config ../../../.github/workflows/configs/ct.yaml \
+            --target-branch ${{ github.event.repository.default_branch }} \
+            --chart-dirs . \
+            --charts kubenetmon-agent \
+            --namespace kubenetmon-agent \
+            --helm-extra-set-args "\
+            --set=image.repository=local/kubenetmon \
+            --set=image.tag=${{needs.BuildDockerImage.outputs.BUILD_VERSION}} \
+            --set=configuration.skipConntrackSanityCheck=true \
+            --set=configuration.uptimeWaitDuration=1s"
+          ct install \
+            --config ../../../.github/workflows/configs/ct.yaml \
+            --target-branch ${{ github.event.repository.default_branch }} \
+            --chart-dirs . \
+            --charts kubenetmon-server \
+            --namespace kubenetmon-server \
+            --helm-extra-set-args "\
+            --set=image.repository=local/kubenetmon \
+            --set=image.tag=${{needs.BuildDockerImage.outputs.BUILD_VERSION}} \
+            --set=inserter.loghouse.skipPing=true \
+            --set=inserter.loghouse.disableTLS=true \
+            --set=inserter.region=europe-north1 \
+            --set=inserter.environment=development \
+            --set=cloud=gcp"
+
+  BuildHelmChart:
+    needs:
+      [BuildDockerImage, TestE2EHelmChart]
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          path: 'src'
+          submodules: true
+          ref: ${{  github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          path: 'dest'
+          ref: 'gh-pages'
+      
+      - name: Build kubenetmon-agent Helm chart with action
+        uses: ./src/.github/actions/helm_build_push
+        with:
+          app_path: ${{ github.workspace }}/src/kubenetmon
+          chart_path: ./deploy/helm/kubenetmon-agent
+          app_name: kubenetmon-agent
+          version: ${{needs.BuildDockerImage.outputs.VERSION_TAG}}
+          app_version:  ${{needs.BuildDockerImage.outputs.BUILD_VERSION}}
+          aws_key_id: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
+          aws_access_key: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
+          aws_region: us-west-2
+          azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}    
+          gh_token: ${{ secrets.PROJECT_AUTOMATION_GITHUB_TOKEN }}
+          make_manifests: "false"
+          dependency_upd: "true"
+      - name: Build kubenetmon-server Helm chart with action
+        uses: ./src/.github/actions/helm_build_push
+        with:
+          app_path: ${{ github.workspace }}/src/kubenetmon
+          chart_path: ./deploy/helm/kubenetmon-server
+          app_name: kubenetmon-server
+          version: ${{needs.BuildDockerImage.outputs.VERSION_TAG}}
+          app_version:  ${{needs.BuildDockerImage.outputs.BUILD_VERSION}}
+          aws_key_id: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
+          aws_access_key: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
+          aws_region: us-west-2
+          azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}    
+          gh_token: ${{ secrets.PROJECT_AUTOMATION_GITHUB_TOKEN }}
+          make_manifests: "false"
+          dependency_upd: "true"
+
+  tagVersion:
+    if: github.ref == 'refs/heads/main' || github.event.inputs.deploy_to_dev == 'true' || github.event.inputs.build_and_push == 'true'
+    needs:
+      [BuildDockerImage, BuildHelmChart]
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Tag version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            ref = 'refs/tags/kubenetmon-${{needs.BuildDockerImage.outputs.VERSION_TAG}}';
+            try {
+              await github.rest.git.updateRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: ref,
+                sha: context.sha
+              });
+            }
+            catch {
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: ref,
+                sha: context.sha
+              });
+            }
+
+  deploykubenetmonInfraToDev:
+    strategy:
+      max-parallel: 1
+      matrix:
+        files_to_patch:
+          - data-plane-infra/environments/development-non-prod-data-plane.yaml
+          - data-plane-infra/environments/gcp/development-us-east1-data-plane.yaml
+          - data-plane-infra/environments/azure/development-westus3-cell0-data-plane.yaml
+    if: github.ref == 'refs/heads/main'
+    name: Deploy - kubenetmon-agent and kubenetmon-server - data-plane-infra/values.yaml
+    runs-on: ubuntu-latest
+    needs: [BuildDockerImage, BuildHelmChart]
+    steps:
+      - name: Checkout project data-plane-configuration
+        uses: actions/checkout@v4
+        with:
+          repository: ClickHouse/data-plane-configuration
+          token: ${{ secrets.PROJECT_AUTOMATION_GITHUB_TOKEN }}
+          path: ./data-plane-configuration
+
+      - name: Update kubenetmon-agent version in file
+        uses: mikefarah/yq@v4.44.3
+        with:
+          cmd: |
+            yq -i '.kubenetmonAgent.version="${{ needs.BuildDockerImage.outputs.VERSION_TAG }}"' data-plane-configuration/${{ matrix.files_to_patch }}
+
+      - name: Update kubenetmon-server version in file
+        uses: mikefarah/yq@v4.44.3
+        with:
+          cmd: |
+            yq -i '.kubenetmonServer.version="${{ needs.BuildDockerImage.outputs.VERSION_TAG }}"' data-plane-configuration/${{ matrix.files_to_patch }}
+
+      - name: Prepare commit
+        run: |
+          cd ${{ github.workspace }}/data-plane-configuration
+          git add data-plane-infra/values.yaml
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -am "Update version ${{needs.BuildDockerImage.outputs.VERSION_TAG}} in ${{ matrix.files_to_patch }} for kubenetmon auto deployment"
+          git show HEAD
+
+      - name: Push
+        run: |
+          cd ${{ github.workspace }}/data-plane-configuration
+          git push

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type ClickHouseConfig struct {
@@ -135,23 +137,33 @@ func main() {
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
+		// Fall back to kubeconfig file.
+		log.Warn().Msg("Failed to get in-cluster config, trying to use kubeconfig file")
+		kubeconfig := os.Getenv("KUBECONFIG")
+		if kubeconfig == "" {
+			kubeconfig = filepath.Join(os.Getenv("HOME"), ".kube", "config")
+		}
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+	}
+
+	if err != nil {
 		log.Fatal().Err(err).Msg("error getting cluster config")
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Fatal().Err(err).Msg("error creating clientset")
+		log.Fatal().Err(err).Msg("error creating Clientset")
 	}
 
 	localClusterWatcher, err := watcher.NewWatcher(cluster, clientset)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create a Watcher")
+		log.Fatal().Err(err).Msg("failed to create Watcher")
 	}
 
 	allWatchers := []watcher.WatcherInterface{localClusterWatcher}
 	remoteLabeler, err := labeler.NewRemoteLabeler(region, cloud, environment)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create remotelabeler")
+		log.Fatal().Err(err).Msg("failed to create Remotelabeler")
 	}
 
 	labeler := labeler.NewLabeler(allWatchers, remoteLabeler, *configMap.IgnoreUDP)

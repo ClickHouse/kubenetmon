@@ -1,12 +1,12 @@
 # OSS TODO list
 
 - [x] Remove all unneded / private code components, rename the package, remove references to internal IP
-- [] Move clickhouse username/password into a secret (same in internal flowd)
-- [] Refactor Makefile & Dockerfile
-- [] Add integration tests
-- [] Complete documentation with a ClickHouse Cloud usage tutorial
-- [] README with actions & build plaques
-- [] Clean up commit history
+- [x] Add integration tests
+- [ ] Move clickhouse username/password into a secret (same in internal flowd)
+- [ ] Refactor Makefile & Dockerfile
+- [ ] Actions and build plaques
+- [ ] README with a ClickHouse Cloud tutorial
+- [ ] Clean up commit history
 
 # kubenetmon
 `kubenetmon` is a stack of services providing us with network observaility.

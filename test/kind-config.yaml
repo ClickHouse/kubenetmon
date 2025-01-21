@@ -1,14 +1,9 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-containerdConfigPatches:
-  - |-
-    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
-      endpoint = ["${DOCKER_REGISTRY_URL}"]
+containerdConfigPatches: []
 nodes:
 - role: control-plane
   extraMounts: &extraMounts
-  - containerPath: /var/lib/kubelet/config.json
-    hostPath: ${HOME}/.docker/config.json
   image: &image kindest/node:v1.29.2@sha256:51a1434a5397193442f0be2a297b488b6c919ce8a3931be0ce822606ea5ca245
   kubeadmConfigPatches: &kubeadmConfigPatches
   - |
