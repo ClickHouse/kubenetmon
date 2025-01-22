@@ -25,9 +25,3 @@ nodes:
 - <<: *worker
   labels:
     topology.kubernetes.io/zone: zone-b
-- <<: *worker
-  labels:
-    topology.kubernetes.io/zone: zone-c
-- <<: *worker
-  labels:
-    topology.kubernetes.io/zone: zone-c

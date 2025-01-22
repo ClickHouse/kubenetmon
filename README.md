@@ -2,8 +2,8 @@
 
 - [x] Remove all unneded / private code components, rename the package, remove references to internal IP
 - [x] Add integration tests
-- [ ] Move clickhouse username/password into a secret (same in internal flowd)
-- [ ] Refactor Makefile & Dockerfile
+- [x] Move clickhouse username/password into a secret (same in internal flowd)
+- [x] Refactor Makefile & Dockerfile
 - [ ] Actions and build plaques
 - [ ] README with a ClickHouse Cloud tutorial
 - [ ] Clean up commit history

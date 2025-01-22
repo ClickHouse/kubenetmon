@@ -47,10 +47,10 @@ configuration: {}
 secrets: {}
 
 environment: ""
-cluster: ""
 cloud: ""
 region: ""
-maxGRPCConnectionAgeSeconds: 300
+cluster: ""
+maxGRPCConnectionAge: 300s
 
 inserter:
   enabled: true
@@ -58,15 +58,14 @@ inserter:
   endpoint: "clickhouse.default.svc.cluster.local:9000"
   username: "default"
   password: ""
-
-  numInserterWorkers: 20
   dialTimeout: 30s
   maxIdleConnections: 50
   batchSize: 15000
   batchSendTimeout: 30s
   waitForAsyncInsert: false
-  ignoreUDP: true
 
+  numInserterWorkers: 20
+  ignoreUDP: true
   # Skip pinging ClickHouse on startup. This is useful to skip in test
   # environments where ClickHouse isn't spun up.
   skipPing: false

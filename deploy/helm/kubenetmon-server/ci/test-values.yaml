@@ -1,6 +1,0 @@
-image:
-  repository: local/kubenetmon
-  pullPolicy: IfNotPresent
-  tag: ""
-metrics:
-  port: 8883

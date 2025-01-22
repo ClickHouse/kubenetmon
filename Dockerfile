@@ -1,14 +1,13 @@
-# Build the kubenetmon binary
 FROM --platform=$BUILDPLATFORM golang:1.23 AS builder
 SHELL ["/bin/bash", "-c"]
 
 WORKDIR /workspace
-# Copy the Go Modules manifests
+# Copy the Go modules manifests.
 COPY go.mod go.mod
 COPY go.sum go.sum
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-# Get them as 'vendor' directory, since we have private module dependencies and downloading would require credentials
+# Cache deps before building and copying source so that we don't need to
+# re-download as much and so that source changes don't invalidate our downloaded
+# layer.
 COPY vendor/ vendor/
 RUN [[ $(ls -1 vendor/ | wc -l) -gt 0 ]] || (echo "Expected 'vendor' dependencies to be present, call 'go mod vendor' before building Docker image" && exit 1)
 

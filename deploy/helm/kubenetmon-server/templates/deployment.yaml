@@ -18,7 +18,8 @@ spec:
       labels:
         {{- include "kubenetmon-server.selectorLabels" . | nindent 8 }}
       annotations:
-        {{- include "kubenetmon-server.configmap-clickhouse.checksum" $ | nindent 8 }}
+        {{- include "kubenetmon-server.configmap.checksum" $ | nindent 8 }}
+        {{- include "kubenetmon-server.secret.checksum" $ | nindent 8 }}
     spec:
       containers:
         - name: {{ include "kubenetmon-server.fullname" . }}
@@ -33,22 +34,6 @@ spec:
                 resourceFieldRef:
                   resource: limits.memory
                   divisor: 1
-            - name: METRICS_PORT
-              value: "{{ .Values.metrics.port }}"
-            - name: GRPC_PORT
-              value: "{{ .Values.service.port }}"
-            - name: ENVIRONMENT
-              value: "{{ .Values.environment }}"
-            - name: CLOUD
-              value: "{{ .Values.cloud }}"
-            - name: REGION
-              value: "{{ .Values.region }}"
-            - name: CLUSTER
-              value: "{{ .Values.cluster }}"
-            - name: NUM_INSERTER_WORKERS
-              value: "{{ .Values.inserter.numInserterWorkers }}"
-            - name: MAX_GRPC_CONNECTION_AGE_SECONDS
-              value: "{{ .Values.maxGRPCConnectionAgeSeconds }}"
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
@@ -77,17 +62,22 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
           volumeMounts:
-            - mountPath: /etc/kubenetmon-server/clickhouse.yaml
-              name: clickhouse-volume
-              subPath: clickhouse.yaml
+            - mountPath: /etc/kubenetmon-server/config.yaml
+              name: config-volume
+              subPath: config.yaml
+            - mountPath: /etc/clickhouse
+              name: clickhouse-credentials
       {{- with.Values.deployment.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
         - configMap:
-            name: clickhouse-config
-          name: clickhouse-volume
+            name: config
+          name: config-volume
+        - secret:
+            secretName: clickhouse-credentials
+          name: clickhouse-credentials
       serviceAccountName: {{ include "kubenetmon-server.fullname" . }}
       automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
       terminationGracePeriodSeconds: 30

@@ -19,6 +19,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # 2. Install ClickHouse
+docker pull clickhouse/clickhouse-server:latest
 kind load docker-image --name kind clickhouse/clickhouse-server:latest
 kubectl apply -f test/clickhouse-deployment.yaml
 echo "Waiting for ClickHouse pod to be ready..."
@@ -30,7 +31,10 @@ kubectl exec -i "$clickhouse_pod" -- clickhouse-client --query="$(cat test/netwo
 # Port forwarding for integration tests
 kubectl port-forward svc/clickhouse 9000:9000 &
 
-# 3. Deploy server Helm chart
+# 3. Build kubenetmon docker image
+docker build -t local/kubenetmon:1.0.0 .
+
+# 4. Deploy server Helm chart
 kubectl create namespace kubenetmon-server
 kind load docker-image --name kind local/kubenetmon:1.0.0
 helm template kubenetmon-server ./deploy/helm/kubenetmon-server \
@@ -40,14 +44,13 @@ helm template kubenetmon-server ./deploy/helm/kubenetmon-server \
     --set inserter.batchSize=10 \
     --set inserter.batchSendTimeout=1s \
     --set inserter.disableTLS=true \
-    --set inserter.skipPing=true \
     --set region=us-west-2 \
     --set cluster=cluster \
     --set environment=development \
     --set cloud=aws \
     --namespace=kubenetmon-server | kubectl apply -n kubenetmon-server -f -
 
-# 4. Deploy agent Helm chart
+# 5. Deploy agent Helm chart
 kubectl create namespace kubenetmon-agent
 kind load docker-image --name kind local/kubenetmon:1.0.0
 helm template kubenetmon-agent ./deploy/helm/kubenetmon-agent \
@@ -65,4 +68,5 @@ if ! go test ./integration -v; then
 fi
 
 echo "Tests passed!"
+
 exit 0

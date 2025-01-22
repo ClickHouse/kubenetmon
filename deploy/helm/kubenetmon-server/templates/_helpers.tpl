@@ -62,9 +62,17 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-configmap-clickhouse checksum calculator
+configmap checksum calculator
 */}}
-{{- define "kubenetmon-server.configmap-clickhouse.checksum" -}}
-{{- $fileContent := include (print .Template.BasePath "/configmap-clickhouse.yaml") . | fromYaml }}
-checksum/clickhouse-config: {{ $fileContent.data | toYaml | sha256sum }}
+{{- define "kubenetmon-server.configmap.checksum" -}}
+{{- $fileContent := include (print .Template.BasePath "/configMap.yaml") . | fromYaml }}
+checksum/configmap: {{ $fileContent.data | toYaml | sha256sum }}
+{{- end }}
+
+{{/*
+secret checksum calculator
+*/}}
+{{- define "kubenetmon-server.secret.checksum" -}}
+{{- $fileContent := include (print .Template.BasePath "/secret.yaml") . | fromYaml }}
+checksum/secret: {{ $fileContent.data | toYaml | sha256sum }}
 {{- end }}

@@ -8,7 +8,7 @@ import (
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 )
 
-// Run this using Makefile so that necessary dependencies are spun up.
+// Run this using Makefile & test/test-kind.sh so that necessary dependencies are spun up.
 func TestEndToEnd(t *testing.T) {
 	conn, err := sql.Open("clickhouse", "tcp://127.0.0.1:9000?username=default")
 	if err != nil {

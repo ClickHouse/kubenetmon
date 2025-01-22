@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
-	"strconv"
 
 	yaml "gopkg.in/yaml.v3"
 	"k8s.io/client-go/kubernetes"
@@ -26,31 +24,41 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
-type ClickHouseConfig struct {
-	Database           string        `yaml:"database"`
-	Enabled            bool          `yaml:"enabled"`
-	Endpoint           string        `yaml:"endpoint"`
-	Username           string        `yaml:"username"`
-	Password           string        `yaml:"password"`
-	DialTimeout        time.Duration `yaml:"dial_timeout"`
-	MaxIdleConnections int           `yaml:"max_idle_connections"`
-	BatchSize          int           `yaml:"batch_size"`
-	BatchSendTimeout   time.Duration `yaml:"batch_send_timeout"`
-	WaitForAsyncInsert bool          `yaml:"wait_for_async_insert"`
-	SkipPing           bool          `yaml:"skip_ping"`
-	DisableTLS         bool          `yaml:"disable_tls"`
-	IgnoreUDP          *bool         `yaml:"ignore_udp,omitempty"`
+type Config struct {
+	MetricsPort                  uint16        `yaml:"metrics_port"`
+	GRPCPort                     uint16        `yaml:"grpc_port"`
+	Environment                  string        `yaml:"environment"`
+	Cloud                        string        `yaml:"cloud"`
+	Region                       string        `yaml:"region"`
+	Cluster                      string        `yaml:"cluster"`
+	MaxGRPCConnectionAge         time.Duration `yaml:"max_grpc_connection_age"`
+	NumInserterWorkers           int           `yaml:"num_inserter_workers"`
+	IgnoreUDP                    *bool         `yaml:"ignore_udp,omitempty"`
+	ClickHouseEnabled            bool          `yaml:"clickhouse_enabled"`
+	ClickHouseDatabase           string        `yaml:"clickhouse_database"`
+	ClickHouseEndpoint           string        `yaml:"clickhouse_endpoint"`
+	ClickHouseDialTimeout        time.Duration `yaml:"clickhouse_dial_timeout"`
+	ClickHouseMaxIdleConnections int           `yaml:"clickhouse_max_idle_connections"`
+	ClickHouseBatchSize          int           `yaml:"clickhouse_batch_size"`
+	ClickHouseBatchSendTimeout   time.Duration `yaml:"clickhouse_batch_send_timeout"`
+	ClickHouseWaitForAsyncInsert bool          `yaml:"clickhouse_wait_for_async_insert"`
+	ClickHouseSkipPing           bool          `yaml:"clickhouse_skip_ping"`
+	ClickHouseDisableTLS         bool          `yaml:"clickhouse_disable_tls"`
+
+	ClickHouseUsername string
+	ClickHousePassword string
 }
 
 const (
-	defaultClickHouseConfigPath string = "/etc/kubenetmon-server/clickhouse.yaml"
+	defaultClickHouseConfigPath   string = "/etc/kubenetmon-server/config.yaml"
+	defaultClickHouseUsernamePath string = "/etc/clickhouse/username"
+	defaultClickHousePasswordPath string = "/etc/clickhouse/password"
 )
 
 var (
-	configMap = ClickHouseConfig{}
+	configMap = Config{}
 )
 
 func init() {
@@ -67,85 +75,68 @@ func init() {
 		var b = true
 		configMap.IgnoreUDP = &b
 	}
+
+	username, err := os.ReadFile(defaultClickHouseUsernamePath)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("error reading username file")
+	}
+
+	password, err := os.ReadFile(defaultClickHousePasswordPath)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("error reading password file")
+	}
+
+	configMap.ClickHouseUsername = string(username)
+	configMap.ClickHousePassword = string(password)
 }
 
 func main() {
 	log.Info().Msgf("GOMAXPROCS: %d\n", runtime.GOMAXPROCS(0))
 	log.Info().Msgf("GOMEMLIMIT: %d\n", debug.SetMemoryLimit(-1))
 
-	metricsPort, ok := os.LookupEnv("METRICS_PORT")
-	if !ok {
-		log.Fatal().Err(errors.New("METRICS_PORT should not be empty")).Send()
+	if configMap.MetricsPort == 0 {
+		log.Fatal().Err(errors.New("metrics_port should not be empty")).Send()
 	}
 
-	grpcPort, ok := os.LookupEnv("GRPC_PORT")
-	if !ok {
-		log.Fatal().Err(errors.New("GRPC_PORT should not be empty")).Send()
+	if configMap.GRPCPort == 0 {
+		log.Fatal().Err(errors.New("grpc_port should not be empty")).Send()
 	}
 
-	unvalidatedEnvironment, ok := os.LookupEnv("ENVIRONMENT")
-	if !ok {
-		log.Fatal().Err(errors.New("ENVIRONMENT should not be empty")).Send()
-	}
 	var environment labeler.Environment
-	var err error
-	environment = labeler.NewEnvironment(unvalidatedEnvironment)
-
-	region, ok := os.LookupEnv("REGION")
-	if !ok {
-		log.Fatal().Err(errors.New("REGION should not be empty")).Send()
+	if configMap.Environment == "" {
+		log.Fatal().Err(errors.New("environment should not be empty")).Send()
 	}
-	region = strings.ToLower(region)
+	environment = labeler.NewEnvironment(configMap.Environment)
 
-	cluster, ok := os.LookupEnv("CLUSTER")
-	if !ok {
-		log.Fatal().Err(errors.New("CLUSTER should not be empty")).Send()
+	var region string
+	if configMap.Region == "" {
+		log.Fatal().Err(errors.New("region should not be empty")).Send()
 	}
+	region = strings.ToLower(configMap.Region)
 
-	numInserterWorkersStr, ok := os.LookupEnv("NUM_INSERTER_WORKERS")
-	if !ok {
-		log.Fatal().Err(errors.New("NUM_INSERTER_WORKERS should not be empty")).Send()
-	}
-	numInserterWorkers, err := strconv.ParseInt(numInserterWorkersStr, 10, 32)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't parse NUM_INSERTER_WORKERS")
+	if configMap.Cluster == "" {
+		log.Fatal().Err(errors.New("cluster")).Send()
 	}
 
-	maxgRPCConnectionAgeSecondsStr, ok := os.LookupEnv("MAX_GRPC_CONNECTION_AGE_SECONDS")
-	if !ok {
-		log.Fatal().Err(errors.New("MAX_GRPC_CONNECTION_AGE_SECONDS should not be empty")).Send()
-	}
-	maxgRPCConnectionAgeSeconds, err := strconv.ParseInt(maxgRPCConnectionAgeSecondsStr, 10, 32)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can't parse MAX_GRPC_CONNECTION_AGE_SECONDS")
+	if configMap.MaxGRPCConnectionAge == 0 {
+		log.Fatal().Err(errors.New("max_grpc_connection_age should not be empty")).Send()
 	}
 
-	unvalidatedCloud, ok := os.LookupEnv("CLOUD")
-	if !ok {
-		log.Fatal().Err(errors.New("CLOUD should not be empty")).Send()
+	if configMap.Cloud == "" {
+		log.Fatal().Err(errors.New("cloud should not be empty")).Send()
 	}
 	var cloud labeler.Cloud
-	cloud, err = labeler.NewCloud(unvalidatedCloud)
+	cloud, err := labeler.NewCloud(configMap.Cloud)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't accept CLOUD")
+		log.Fatal().Err(err).Msg("Can't accept cloud")
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", grpcPort))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%v", configMap.GRPCPort))
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create a listener")
 	}
 
 	config, err := rest.InClusterConfig()
-	if err != nil {
-		// Fall back to kubeconfig file.
-		log.Warn().Msg("Failed to get in-cluster config, trying to use kubeconfig file")
-		kubeconfig := os.Getenv("KUBECONFIG")
-		if kubeconfig == "" {
-			kubeconfig = filepath.Join(os.Getenv("HOME"), ".kube", "config")
-		}
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-	}
-
 	if err != nil {
 		log.Fatal().Err(err).Msg("error getting cluster config")
 	}
@@ -155,7 +146,7 @@ func main() {
 		log.Fatal().Err(err).Msg("error creating Clientset")
 	}
 
-	localClusterWatcher, err := watcher.NewWatcher(cluster, clientset)
+	localClusterWatcher, err := watcher.NewWatcher(configMap.Cluster, clientset)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create Watcher")
 	}
@@ -167,26 +158,26 @@ func main() {
 	}
 
 	labeler := labeler.NewLabeler(allWatchers, remoteLabeler, *configMap.IgnoreUDP)
-	runtimeInfo := inserter.RuntimeInfo{Cloud: cloud, Env: environment, Region: region, Cluster: cluster}
+	runtimeInfo := inserter.RuntimeInfo{Cloud: cloud, Env: environment, Region: region, Cluster: configMap.Cluster}
 	clickhouseOptions := inserter.ClickHouseOptions{
-		Database: configMap.Database,
-		Enabled:  configMap.Enabled,
+		Database: configMap.ClickHouseDatabase,
+		Enabled:  configMap.ClickHouseEnabled,
 
-		Endpoint: configMap.Endpoint,
-		Username: configMap.Username,
-		Password: configMap.Password,
+		Endpoint: configMap.ClickHouseEndpoint,
+		Username: configMap.ClickHouseUsername,
+		Password: configMap.ClickHousePassword,
 
-		DialTimeout:        configMap.DialTimeout,
-		MaxIdleConnections: configMap.MaxIdleConnections,
-		BatchSize:          configMap.BatchSize,
-		BatchSendTimeout:   configMap.BatchSendTimeout,
-		WaitForAsyncInsert: configMap.WaitForAsyncInsert,
+		DialTimeout:        configMap.ClickHouseDialTimeout,
+		MaxIdleConnections: configMap.ClickHouseMaxIdleConnections,
+		BatchSize:          configMap.ClickHouseBatchSize,
+		BatchSendTimeout:   configMap.ClickHouseBatchSendTimeout,
+		WaitForAsyncInsert: configMap.ClickHouseWaitForAsyncInsert,
 
-		SkipPing:   configMap.SkipPing,
-		DisableTLS: configMap.DisableTLS,
+		SkipPing:   configMap.ClickHouseSkipPing,
+		DisableTLS: configMap.ClickHouseDisableTLS,
 	}
 
-	inserter, err := inserter.NewInserter(clickhouseOptions, runtimeInfo, int(numInserterWorkers))
+	inserter, err := inserter.NewInserter(clickhouseOptions, runtimeInfo, int(configMap.NumInserterWorkers))
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create an inserter")
 	}
@@ -195,13 +186,13 @@ func main() {
 	go func() {
 		var opts = []grpc.ServerOption{
 			grpc.KeepaliveParams(keepalive.ServerParameters{
-				MaxConnectionAge:      time.Duration(maxgRPCConnectionAgeSeconds) * time.Second,
+				MaxConnectionAge:      configMap.MaxGRPCConnectionAge,
 				MaxConnectionAgeGrace: 1 * time.Minute,
 			}),
 		}
 		grpcServer := grpc.NewServer(opts...)
 		pb.RegisterFlowHandlerServer(grpcServer, server)
-		log.Info().Msgf("Beginning to serve flowHandlerServer on port :%v\n", grpcPort)
+		log.Info().Msgf("Beginning to serve flowHandlerServer on port :%v\n", configMap.GRPCPort)
 		log.Fatal().Err(grpcServer.Serve(listener)).Send()
 	}()
 
@@ -213,6 +204,6 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	log.Info().Msgf("Beginning to serve metrics on port :%v/metrics\n", metricsPort)
-	log.Fatal().Err(http.ListenAndServe(fmt.Sprintf(":%v", metricsPort), nil)).Send()
+	log.Info().Msgf("Beginning to serve metrics on port :%v/metrics\n", configMap.MetricsPort)
+	log.Fatal().Err(http.ListenAndServe(fmt.Sprintf(":%v", configMap.MetricsPort), nil)).Send()
 }
