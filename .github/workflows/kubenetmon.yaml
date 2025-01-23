@@ -78,7 +78,7 @@ jobs:
           load: true
 
       - name: Save image as artifact
-        run: docker save ${{ steps.meta.outputs.tags }} -o image.tar
+        run: docker save -o image.tar ${{ steps.meta.outputs.tags }}
       
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
@@ -185,12 +185,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate Version
+        id: version
+        run: |
+          # Use short commit SHA as the version
+          VERSION=$(git rev-parse --short HEAD)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Push to GitHub Container Registry
         run: |
-          IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | grep sha | cut -d':' -f2)
-          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/clickhouse/kubenetmon:$IMAGE_TAG
+          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/clickhouse/kubenetmon:$VERSION
           docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/clickhouse/kubenetmon:latest
-          docker push ghcr.io/clickhouse/kubenetmon:$IMAGE_TAG
+          docker push ghcr.io/clickhouse/kubenetmon:$VERSION
           docker push ghcr.io/clickhouse/kubenetmon:latest
 
   helm-publish:
