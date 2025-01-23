@@ -12,7 +12,7 @@ on:
 
 jobs:
   lint-and-test:
-    name: Lint and Test Code and Charts
+    name: Lint and test code and charts
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -25,13 +25,10 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
-      - name: Install dependencies
-        run: |
-          make golangci-lint
-
-      - name: Run code linter
-        run: |
-          make lint
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.60
 
       - name: Run tests
         run: |

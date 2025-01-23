@@ -21,7 +21,7 @@ lint: ## Run linters.
 		echo "golangci-lint not found. Install it with 'make golangci-lint'"; \
 		exit 1; \
 	fi
-	golangci-lint run
+	golangci-lint --allow-parallel-runners --fast --fix --verbose ./...
 
 vendor: ## Vendor dependencies.
 	go mod vendor -v
@@ -29,10 +29,10 @@ vendor: ## Vendor dependencies.
 clean: ## Clean build artifacts.
 	rm -rf bin cover.out
 
-build: tidy lint vendor ## Build binaries (Linux only).
+build: tidy vendor ## Build binaries (Linux only).
 	GOOS=linux go build -o bin/ ./...
 
-test: tidy lint vendor ## Run unit tests (Linux only).
+test: tidy vendor ## Run unit tests (Linux only).
 	CGO_ENABLED=1 GOOS=linux go test -v -race -coverprofile cover.out -tags '!integration' ./...
 
 docker-build: ## Build Docker image.
