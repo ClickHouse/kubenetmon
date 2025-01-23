@@ -1,6 +1,6 @@
 apiVersion: v2
 name: kubenetmon-agent
-description: A Helm chart for installing kubenetmon-agent on Kubernetes to monitor data transfer
+description: A Helm chart for installing kubenetmon-agent on Kubernetes
 
 # A chart can be either an 'application' or a 'library' chart.
 #
@@ -22,6 +22,3 @@ version: 0.0.1
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "1.0.0"
-
-annotations:
-  checkPromRulesSkip: "true"
