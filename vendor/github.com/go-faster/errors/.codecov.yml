@@ -1,8 +1,0 @@
-ignore:
-  - cmd/**/*.go
-coverage:
-  status:
-    patch: false
-    project:
-      default:
-        threshold: 0.5%

@@ -1,6 +1,0 @@
-# Generated output
-*.out
-*.test
-build/
-
-.vagrant/
