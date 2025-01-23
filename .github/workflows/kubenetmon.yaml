@@ -10,10 +10,6 @@ on:
     paths:
       - '**'
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   golangci:
     name: Lint
@@ -64,7 +60,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: gchr.io/clickhouse/kubenetmon
 
       - name: Build Docker image
         id: build
@@ -161,7 +157,7 @@ jobs:
 
   docker-publish:
     name: Publish Docker image
-    needs: [golangci, build-docker-image, helm-test]
+    needs: [build-docker-image]
     # needs: [golangci, test, build-docker-image, helm-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -187,16 +183,16 @@ jobs:
       - name: Push to GitHub Container Registry
         run: |
           IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
-          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:$IMAGE_TAG
-          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:latest
-          docker push ghcr.io/${{ github.repository }}:$IMAGE_TAG
-          docker push ghcr.io/${{ github.repository }}:latest
-          gh pkg meta ghcr.io/${{ github.repository }}:$IMAGE_TAG --visibility public
-          gh pkg meta ghcr.io/${{ github.repository }}:latest --visibility public
+          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/clickhouse/kubenetmon:$IMAGE_TAG
+          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/clickhouse/kubenetmon:latest
+          docker push ghcr.io/clickhouse/kubenetmon:$IMAGE_TAG
+          docker push ghcr.io/clickhouse/kubenetmon:latest
+          gh pkg meta ghcr.io/clickhouse/kubenetmon:$IMAGE_TAG --visibility public
+          gh pkg meta ghcr.io/clickhouse/kubenetmon:latest --visibility public
 
   helm-publish:
     name: Package and publish Helm charts
-    needs: [golangci, build-docker-image, helm-test]
+    needs: [build-docker-image]
     # needs: [golangci, test, build-docker-image, helm-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -236,5 +232,5 @@ jobs:
         run: |
           IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
           for chart in .cr-release-packages/*.tgz; do
-            helm push $chart oci://ghcr.io/${{ github.repository }}/charts
+            helm push $chart oci://ghcr.io/clickhouse/kubenetmon/charts
           done

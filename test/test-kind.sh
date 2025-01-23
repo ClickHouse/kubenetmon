@@ -32,9 +32,6 @@ clickhouse_pod=$(kubectl get pods -l app=clickhouse -o jsonpath="{.items[0].meta
 
 # Execute the SQL command
 kubectl exec -i "$clickhouse_pod" -- clickhouse-client --query="$(cat test/network_flows_0.sql)"
-# Port forwarding for integration tests
-sleep 15
-kubectl port-forward svc/clickhouse 9000:9000 &
 
 # 3. Build kubenetmon docker image
 docker build -t local/kubenetmon:1.0.0 .
@@ -76,6 +73,10 @@ kubectl logs -n kubenetmon-server -l app.kubernetes.io/name=kubenetmon-server --
 
 echo "Fetching kubenetmon-agent logs..."
 kubectl logs -n kubenetmon-agent -l app.kubernetes.io/name=kubenetmon-agent --tail=-1 || echo "Failed to fetch agent logs"
+
+# Port forwarding for integration tests
+echo "Configure port forwarding"
+kubectl port-forward svc/clickhouse 9000:9000 &
 
 if ! go test ./integration -v -tags 'integration' -v; then
     echo "Tests failed!"
