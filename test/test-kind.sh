@@ -12,6 +12,10 @@ done
 # Cleanup function
 cleanup() {
     echo "Cleaning up test environment..."
+    echo "Collecting kubenetmon-server logs..."
+    kubectl logs -n kubenetmon-server -l app.kubernetes.io/name=kubenetmon-server --tail=-1 || echo "Failed to get server logs"
+    echo "Collecting kubenetmon-agent logs..."
+    kubectl logs -n kubenetmon-agent -l app.kubernetes.io/name=kubenetmon-agent --tail=-1 || echo "Failed to get agent logs"
     kind delete cluster
 }
 
@@ -65,6 +69,13 @@ kubectl wait --namespace kubenetmon-agent --for=condition=ready pod -l app.kuber
 echo "Kind cluster setup complete. Run 'kubectl get pods --all-namespaces' to verify."
 echo "Sleeping 30 seconds to let some traffic flow"
 sleep 30
+
+# Capture logs for debugging in CI
+echo "Fetching kubenetmon-server logs..."
+kubectl logs -n kubenetmon-server -l app.kubernetes.io/name=kubenetmon-server --tail=-1 || echo "Failed to fetch server logs"
+
+echo "Fetching kubenetmon-agent logs..."
+kubectl logs -n kubenetmon-agent -l app.kubernetes.io/name=kubenetmon-agent --tail=-1 || echo "Failed to fetch agent logs"
 
 if ! go test ./integration -v -tags 'integration' -v; then
     echo "Tests failed!"
