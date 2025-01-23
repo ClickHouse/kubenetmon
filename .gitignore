@@ -1,3 +1,4 @@
 bin/
 kubeconfig
 cover.out
+.vscode/*
