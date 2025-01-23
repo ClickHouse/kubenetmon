@@ -130,7 +130,7 @@ jobs:
 
       - name: Run chart-testing (install)
         run: |
-          cd kubenetmon/deploy/helm
+          cd deploy/helm
           ct install \
             --config ../../../.github/workflows/configs/ct.yaml \
             --target-branch ${{ github.event.repository.default_branch }} \
@@ -160,33 +160,35 @@ jobs:
             --set=cloud=gcp"
 
   docker-publish:
-   name: Publish Docker image
-   needs: [golangci, test, build-docker-image, helm-test]
-   runs-on: ubuntu-latest
-   if: github.ref == 'refs/heads/main'
-   permissions:
-     contents: read
-     packages: write
-   steps:
-     - name: Download Docker image
-       uses: actions/download-artifact@v4
-       with:
-         name: docker-image
+    name: Publish Docker image
+    needs: [golangci, test, build-docker-image, helm-test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
 
-     - name: Load Docker image
-       run: docker load -i image.tar
+      - name: Load Docker image
+        run: docker load -i image.tar
 
-     - name: Log in to GitHub Container Registry
-       uses: docker/login-action@v3
-       with:
-         registry: ghcr.io
-         username: ${{ github.actor }}
-         password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-     - name: Push to GitHub Container Registry
-       run: |
-         IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
-         docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:$IMAGE_TAG
-         docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:latest
-         docker push ghcr.io/${{ github.repository }}:$IMAGE_TAG
-         docker push ghcr.io/${{ github.repository }}:latest
+      - name: Push to GitHub Container Registry
+        run: |
+          IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
+          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:$IMAGE_TAG
+          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:latest
+          docker push ghcr.io/${{ github.repository }}:$IMAGE_TAG
+          docker push ghcr.io/${{ github.repository }}:latest
+          gh pkg meta ghcr.io/${{ github.repository }}:$IMAGE_TAG --visibility public
+          gh pkg meta ghcr.io/${{ github.repository }}:latest --visibility public

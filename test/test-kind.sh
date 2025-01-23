@@ -29,6 +29,7 @@ clickhouse_pod=$(kubectl get pods -l app=clickhouse -o jsonpath="{.items[0].meta
 # Execute the SQL command
 kubectl exec -i "$clickhouse_pod" -- clickhouse-client --query="$(cat test/network_flows_0.sql)"
 # Port forwarding for integration tests
+sleep 15
 kubectl port-forward svc/clickhouse 9000:9000 &
 
 # 3. Build kubenetmon docker image
