@@ -21,7 +21,7 @@ ARG GIT_COMMIT=unspecified
 ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -a -o bin/ ./...
 
-# Use distroless as minimal base image to package the flowd binary
+# Use distroless as minimal base image to package the kubenetmon binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
