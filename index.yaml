@@ -1,0 +1,25 @@
+apiVersion: v1
+entries:
+  kubenetmon-agent:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2025-01-23T16:14:10.15539834Z"
+    description: A Helm chart for installing kubenetmon-agent on Kubernetes
+    digest: 94e539b66a16e4413eb09f9fa3033fc6a9ad8a9158f3a5404546e76317c37e78
+    name: kubenetmon-agent
+    type: application
+    urls:
+    - https://github.com/ClickHouse/kubenetmon/releases/download/kubenetmon-agent-0.0.1/kubenetmon-agent-0.0.1.tgz
+    version: 0.0.1
+  kubenetmon-server:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2025-01-23T16:14:10.285038743Z"
+    description: A Helm chart for installing kubenetmon-server on Kubernetes
+    digest: 62042d1bc820caf2d59d7fda30d2d8a636ce2a92c2f45277d63e1fe7f2c2ae14
+    name: kubenetmon-server
+    type: application
+    urls:
+    - https://github.com/ClickHouse/kubenetmon/releases/download/kubenetmon-server-0.0.1/kubenetmon-server-0.0.1.tgz
+    version: 0.0.1
+generated: "2025-01-23T16:14:10.285043382Z"
