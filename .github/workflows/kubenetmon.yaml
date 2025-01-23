@@ -65,7 +65,6 @@ jobs:
           images: gchr.io/clickhouse/kubenetmon
           tags: |
             type=sha
-            type=ref,event=branch
 
       - name: Build Docker image
         id: build
