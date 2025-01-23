@@ -61,8 +61,9 @@ echo "Waiting for kubenetmon-agent pods to be ready..."
 kubectl wait --namespace kubenetmon-agent --for=condition=ready pod -l app.kubernetes.io/name=kubenetmon-agent --timeout=180s
 
 echo "Kind cluster setup complete. Run 'kubectl get pods --all-namespaces' to verify."
+sleep 15
 
-if ! go test ./integration -v; then
+if ! go test ./integration -v -tags 'integration' -v; then
     echo "Tests failed!"
     exit 1
 fi

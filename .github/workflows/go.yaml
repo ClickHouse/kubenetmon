@@ -35,7 +35,9 @@ jobs:
           make integration-test
 
   build-and-push-image:
+    name: Build and push image
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
