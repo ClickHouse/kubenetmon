@@ -1,4 +1,4 @@
-name: CI Workflow
+name: Main workflow
 
 on:
   pull_request:
@@ -25,11 +25,6 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.60
-
       - name: Run tests
         run: |
           make test
@@ -47,7 +42,7 @@ jobs:
           helm template kubenetmon/deploy/helm | kubectl apply --dry-run=client -f -
 
   build-and-publish:
-    name: Build and Publish Docker and Helm Chart
+    name: Build and publish Docker image and Helm chart
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: lint-and-test

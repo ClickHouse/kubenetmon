@@ -76,20 +76,6 @@ func (m ConnectionFlags) String() string {
 	return strings.ReplaceAll(string(b), "\"", "'")
 }
 
-// List of ClickHouse Server ports that are only used by customers. We can bill
-// for all traffic on them.
-//
-// 8124 is used for HTTP with PROXY.
-//
-// 8443 is used for HTTPS (terminated by ClickHouse).
-//
-// 9004 is used for MySQL.
-//
-// 9011 is used by native protocol with PROXY.
-//
-// 9440 is used by native protocol with TLS (terminated by ClickHouse).
-var customerExclusiveClickHouseServerPorts = []uint16{8124, 8443, 9004, 9011, 9440}
-
 // FlowdData describes all the information needed for all Prometheus metrics
 // related to a conntrack connection (one flow toward the local pod, one flow
 // out of the local pod).

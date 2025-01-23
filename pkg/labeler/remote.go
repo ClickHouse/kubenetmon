@@ -2,7 +2,6 @@ package labeler
 
 import (
 	"fmt"
-	"net"
 	"sync"
 	"time"
 
@@ -30,11 +29,6 @@ type RemoteLabeler struct {
 	environment Environment
 	region      string
 	cloud       Cloud
-}
-
-type azDetail struct {
-	region string
-	azID   string
 }
 
 var (
@@ -213,63 +207,4 @@ func getCloudRanges() (awsIPRanges AWSIPRanges, gcpIPRanges GCPIPRanges, googleI
 	}
 
 	return
-}
-
-// getCloudRegions builds a list of regions for the requested cloud.
-func getCloudRegions(cloud Cloud, ipRanges interface{}) ([]string, error) {
-	var (
-		uniqRegions = make(map[string]struct{})
-		regions     = make([]string, 0)
-	)
-
-	switch cloud {
-	case AWS:
-		awsIPRanges := ipRanges.(AWSIPRanges)
-		for _, p := range awsIPRanges.Prefixes {
-			if _, ok := uniqRegions[p.Region]; !ok {
-				regions = append(regions, NormalizeCloudString(p.Region))
-				uniqRegions[p.Region] = struct{}{}
-			}
-		}
-	case GCP:
-		gcpIPRanges := ipRanges.(GCPIPRanges)
-		for _, p := range gcpIPRanges.Prefixes {
-			if _, ok := uniqRegions[p.Scope]; !ok {
-				regions = append(regions, NormalizeCloudString(p.Scope))
-				uniqRegions[p.Scope] = struct{}{}
-			}
-		}
-	case Azure:
-		azureIPRanges := ipRanges.(AzureIPRanges)
-		for _, pg := range azureIPRanges.PrefixGroups {
-			region := pg.Properties.Region
-			if region == "" {
-				region = AzureGlobalRegion
-			}
-
-			if _, ok := uniqRegions[region]; !ok {
-				regions = append(regions, region)
-				uniqRegions[region] = struct{}{}
-			}
-		}
-	}
-
-	return regions, nil
-}
-
-// tryGetHostIPs gets all IPs for the host and doesn't return an error when the
-// host doesn't exist.
-func tryGetHostIPs(host string) ([]net.IP, error) {
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		if e, ok := err.(*net.DNSError); ok {
-			if e.IsNotFound {
-				return nil, nil
-			}
-		}
-
-		return nil, fmt.Errorf("could not resolve host %v: %w", host, err)
-	}
-
-	return ips, nil
 }

@@ -21,7 +21,7 @@ lint: ## Run linters.
 		echo "golangci-lint not found. Install it with 'make golangci-lint'"; \
 		exit 1; \
 	fi
-	golangci-lint --allow-parallel-runners --fast --fix --verbose ./...
+	golangci-lint run --allow-parallel-runners --fast --fix --verbose ./...
 
 vendor: ## Vendor dependencies.
 	go mod vendor -v
