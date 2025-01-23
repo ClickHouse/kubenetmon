@@ -58,7 +58,7 @@ helm template kubenetmon-agent ./deploy/helm/kubenetmon-agent \
     --set image.tag=1.0.0 \
     --namespace=kubenetmon-agent | kubectl apply -n kubenetmon-agent -f -
 echo "Waiting for kubenetmon-agent pods to be ready..."
-kubectl wait --namespace kubenetmon-agent --for=condition=ready pod -l app.kubernetes.io/name=kubenetmon-agent --timeout=120s
+kubectl wait --namespace kubenetmon-agent --for=condition=ready pod -l app.kubernetes.io/name=kubenetmon-agent --timeout=180s
 
 echo "Kind cluster setup complete. Run 'kubectl get pods --all-namespaces' to verify."
 

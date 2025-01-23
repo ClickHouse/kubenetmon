@@ -5,8 +5,9 @@
 - [x] Move clickhouse username/password into a secret (same in internal flowd)
 - [x] Refactor Makefile & Dockerfile
 - [ ] Actions and build plaques
-- [ ] README with a ClickHouse Cloud tutorial
+- [ ] README with a ClickHouse Cloud tutorial, LICENSE
 - [ ] Clean up commit history
+- [ ] Configure repository settings
 
 # kubenetmon
 

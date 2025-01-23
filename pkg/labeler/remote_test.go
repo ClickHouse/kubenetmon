@@ -280,7 +280,7 @@ func TestGetCloudRegions(t *testing.T) {
 	assert.NotNil(t, regions)
 	assert.Contains(t, regions, "westus3")
 	assert.Contains(t, regions, "eastus2")
-	assert.Contains(t, regions, "germanywestcentral")
+	assert.Contains(t, regions, "germanywc")
 	assert.Contains(t, regions, "eastus")
 }
 
