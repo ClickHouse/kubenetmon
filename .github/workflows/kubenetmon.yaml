@@ -42,8 +42,8 @@ jobs:
           cache-dependency-path: go.sum
       - name: Run tests
         run: |
-          make test
           make integration-test
+          make test
       
   build-docker-image:
     name: Build Docker image
@@ -192,3 +192,47 @@ jobs:
           docker push ghcr.io/${{ github.repository }}:latest
           gh pkg meta ghcr.io/${{ github.repository }}:$IMAGE_TAG --visibility public
           gh pkg meta ghcr.io/${{ github.repository }}:latest --visibility public
+
+  helm-publish:
+    name: Package and publish Helm charts
+    needs: [golangci, test, build-docker-image, helm-test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Update chart version
+        run: |
+          IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
+          for chart in deploy/helm/kubenetmon-agent deploy/helm/kubenetmon-server; do
+            sed -i "s/^version:.*/version: $IMAGE_TAG/" $chart/Chart.yaml
+            sed -i "s/^appVersion:.*/appVersion: $IMAGE_TAG/" $chart/Chart.yaml
+          done
+
+      - name: Package Helm charts
+        run: |
+          mkdir -p .cr-release-packages
+          for chart in deploy/helm/kubenetmon-agent deploy/helm/kubenetmon-server; do
+            helm package $chart --destination .cr-release-packages
+          done
+
+      - name: Upload Helm chart to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: .cr-release-packages/*
+          tag_name: ${{ needs.build-docker-image.outputs.image-tags }}
+          generate_release_notes: true
+
+      - name: Push charts to GHCR
+        run: |
+          IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
+          for chart in .cr-release-packages/*.tgz; do
+            helm push $chart oci://ghcr.io/${{ github.repository }}/charts
+          done
