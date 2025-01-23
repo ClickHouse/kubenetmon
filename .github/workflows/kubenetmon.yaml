@@ -28,7 +28,7 @@ jobs:
         run: go mod download
 
       - name: Run linting
-        run: make lint
+        run: make golangci-lint && make lint
 
       - name: Run tests
         run: make test && make integration-test
