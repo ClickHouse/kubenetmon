@@ -156,10 +156,8 @@ func (d *remoteIPPrefixDetail) Normalize() {
 
 // Sometimes AWS advertises a single prefix under multiple services at a time,
 // in which case we need to choose which service to attribute it to
-// (consistently). We care that we attribute traffic to S3 where possible so
-// that in ambiguous situations we mark customer's outbound traffic as going
-// through VPC Endpoint rather than NAT Gateway (rounding our pricing and
-// charges down rather than up). This is a simple heuristic but it should work.
+// (consistently). We attribute traffic to S3 where possible, then to Amazon
+// services, then to EC2.
 //
 // By convention, lower priority number = higher priority.
 var awsServicePriorities map[string]int = map[string]int{
@@ -282,9 +280,6 @@ func refreshRemoteIPs(aws AWSIPRanges, gcp GCPIPRanges, google GoogleIPRanges, a
 			// find a prefix twice, we prioritise a non-empty SystemService over
 			// an empty SystemService and AzureStorageService SystemService over
 			// any SystemService.
-			//
-			// AzureStorage is important because we want to have no false
-			// negatives when identifying SMT traffic.
 			if detail, ok := remoteIPRanges[ip.ToIPv4().ToKey()]; !ok || (((detail.service == AzureCloudService || detail.service == AzureService || detail.service == "") && pg.Properties.SystemService != "") || (pg.Properties.SystemService == AzureStorageService) || (detail.region == AzureGlobalRegion && region != AzureGlobalRegion && detail.service == service)) {
 				// If the prefix hasn't been found, OR
 				//

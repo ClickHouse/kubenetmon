@@ -883,20 +883,18 @@ func TestLabelFlow(t *testing.T) {
 		// In AWS, connections to service IPs have the original tuple (podIP,
 		// serviceIP) and the reply tuple (podIP, podIP).
 		var (
-			localAvailabilityZone    = "local_availability_zone"
-			localAvailabilityZoneID  = "usw2-az1"
-			localInstance            = "local_instance"
-			remoteInstance           = "remote_instance"
-			localNamespace           = "local_namespace"
-			remoteNamespace          = "remote_namespace"
-			localPod                 = "local_pod"
-			remotePod                = "remote_pod"
-			localNode                = "local_node"
-			remoteNode               = "remote_node"
-			localApp                 = "local_app"
-			remoteApp                = "remote_app"
-			remoteAvailabilityZone   = "remote_availability_zone"
-			remoteAvailabilityZoneID = "usw2-az2"
+			localAvailabilityZone  = "local_availability_zone"
+			localInstance          = "local_instance"
+			remoteInstance         = "remote_instance"
+			localNamespace         = "local_namespace"
+			remoteNamespace        = "remote_namespace"
+			localPod               = "local_pod"
+			remotePod              = "remote_pod"
+			localNode              = "local_node"
+			remoteNode             = "remote_node"
+			localApp               = "local_app"
+			remoteApp              = "remote_app"
+			remoteAvailabilityZone = "remote_availability_zone"
 
 			origSrcIP  = netip.MustParseAddr("10.0.0.1")
 			origDstIP  = netip.MustParseAddr("10.0.0.2")
@@ -1005,7 +1003,7 @@ func TestLabelFlow(t *testing.T) {
 			PacketsOut:             origPackets,
 			BytesOut:               origBytes,
 			Proto:                  protocolTCP,
-			LocalAvailabilityZone:  localAvailabilityZoneID,
+			LocalAvailabilityZone:  localAvailabilityZone,
 			LocalNode:              localNode,
 			LocalInstanceID:        localInstance,
 			LocalNamespace:         localNamespace,
@@ -1017,7 +1015,7 @@ func TestLabelFlow(t *testing.T) {
 			RemoteIP:               replySrcIP,
 			RemotePort:             replySrcPort,
 			RemoteNode:             remoteNode,
-			RemoteAvailabilityZone: remoteAvailabilityZoneID,
+			RemoteAvailabilityZone: remoteAvailabilityZone,
 			RemoteInstanceID:       remoteInstance,
 			RemoteNamespace:        remoteNamespace,
 			RemotePod:              remotePod,
