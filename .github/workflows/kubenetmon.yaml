@@ -169,6 +169,9 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
@@ -188,7 +191,7 @@ jobs:
         id: version
         run: |
           # Use short commit SHA as the version
-          VERSION=$(git rev-parse --short HEAD)
+          VERSION="0.1.0-$(git rev-parse --short HEAD)"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Push to GitHub Container Registry
@@ -218,7 +221,7 @@ jobs:
         id: version
         run: |
           # Use short commit SHA as the version
-          VERSION=$(git rev-parse --short HEAD)
+          VERSION="0.1.0-$(git rev-parse --short HEAD)"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Update chart version
