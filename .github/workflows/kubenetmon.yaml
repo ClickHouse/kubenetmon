@@ -132,7 +132,7 @@ jobs:
         run: |
           cd deploy/helm
           ct install \
-            --config ../../../.github/workflows/configs/ct.yaml \
+            --config ../../ct.yaml \
             --target-branch ${{ github.event.repository.default_branch }} \
             --chart-dirs . \
             --charts kubenetmon-agent \
@@ -143,7 +143,7 @@ jobs:
             --set=configuration.skipConntrackSanityCheck=true \
             --set=configuration.uptimeWaitDuration=1s"
           ct install \
-            --config ../../../.github/workflows/configs/ct.yaml \
+            --config ../../ct.yaml \
             --target-branch ${{ github.event.repository.default_branch }} \
             --chart-dirs . \
             --charts kubenetmon-server \
