@@ -161,8 +161,7 @@ jobs:
 
   docker-publish:
     name: Publish Docker image
-    needs: [build-docker-image]
-    # needs: [golangci, test, build-docker-image, helm-test]
+    needs: [golangci, test, build-docker-image, helm-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -203,8 +202,7 @@ jobs:
 
   helm-publish:
     name: Package and publish Helm charts
-    # needs: [build-docker-image]
-    # needs: [golangci, test, build-docker-image, helm-test]
+    needs: [golangci, test, build-docker-image, helm-test]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
