@@ -1,81 +1,87 @@
-name: kubenetmon
+name: CI Workflow
 
 on:
+  pull_request:
+    paths:
+      - '**'
   push:
     branches:
       - main
     paths:
-      - kubenetmon/**
-      - .github/workflows/kubenetmon.yaml
-  pull_request:
-    paths:
-      - kubenetmon/**
-      - .github/workflows/kubenetmon.yaml
+      - '**'
 
 jobs:
   lint-and-test:
+    name: Lint and Test Code and Charts
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out code
         uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: '1.23'
+          cache: true
+          cache-dependency-path: go.sum
 
       - name: Install dependencies
-        run: go mod download
+        run: |
+          make golangci-lint
 
-      - name: Run linting
-        run: make golangci-lint && make lint
+      - name: Run code linter
+        run: |
+          make lint
 
       - name: Run tests
-        run: make test && make integration-test
+        run: |
+          make test
+          make integration-test
 
-  package-docker:
-    needs: lint-and-test
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint Helm charts
+        run: |
+          helm lint kubenetmon/deploy/helm
+
+      - name: Test Helm charts
+        run: |
+          helm template kubenetmon/deploy/helm | kubectl apply --dry-run=client -f -
+
+  build-and-publish:
+    name: Build and Publish Docker and Helm Chart
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    needs: lint-and-test
     steps:
-      - name: Check out repository
+      - name: Check out code
         uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
 
       - name: Build Docker image
         run: |
-          make docker-image
-          docker tag kubenetmon:latest my-docker-repo/kubenetmon:${{ github.sha }}
+          docker build -t your-docker-repo/kubenetmon:${{ github.sha }} .
 
       - name: Push Docker image
-        env:
-          DOCKER_USER: ${{ secrets.DOCKER_USER }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-          echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USER}" --password-stdin
-          docker push my-docker-repo/kubenetmon:${{ github.sha }}
-
-  package-helm:
-    needs: lint-and-test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GITHUB_ACTOR }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          docker push your-docker-repo/kubenetmon:${{ github.sha }}
 
       - name: Package Helm chart
         run: |
-          helm package kubenetmon/deploy/helm -d packaged-charts
+          helm package kubenetmon/deploy/helm
 
-      - name: Push Helm chart
-        env:
-          CHART_REPO_URL: ${{ secrets.CHART_REPO_URL }}
-          CHART_REPO_TOKEN: ${{ secrets.CHART_REPO_TOKEN }}
-        run: |
-          curl -u "token:${CHART_REPO_TOKEN}" \
-            -F chart=@packaged-charts/kubenetmon-*.tgz \
-            "${CHART_REPO_URL}"
-
-  publish:
-    needs: [package-docker, package-helm]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deployment successful
-        run: echo "Docker image and Helm chart published successfully."
+      - name: Publish Helm chart
+        uses: helm/chart-releaser-action@v2.3.0
+        with:
+          charts_dir: kubenetmon/deploy/helm
+          release_repo: your-helm-repo-url
