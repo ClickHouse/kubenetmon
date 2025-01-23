@@ -56,12 +56,14 @@ kind load docker-image --name kind local/kubenetmon:1.0.0
 helm template kubenetmon-agent ./deploy/helm/kubenetmon-agent \
     -f ./deploy/helm/kubenetmon-agent/values.yaml \
     --set image.tag=1.0.0 \
+    --set configuration.collectionInterval=1s \
     --namespace=kubenetmon-agent | kubectl apply -n kubenetmon-agent -f -
 echo "Waiting for kubenetmon-agent pods to be ready..."
 kubectl wait --namespace kubenetmon-agent --for=condition=ready pod -l app.kubernetes.io/name=kubenetmon-agent --timeout=180s
 
 echo "Kind cluster setup complete. Run 'kubectl get pods --all-namespaces' to verify."
-sleep 15
+echo "Sleeping 30 seconds to let some traffic flow"
+sleep 30
 
 if ! go test ./integration -v -tags 'integration' -v; then
     echo "Tests failed!"
