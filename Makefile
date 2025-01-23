@@ -17,10 +17,11 @@ tidy: ## Run `go mod tidy`.
 	go mod tidy -e
 
 lint: ## Run linters.
-	@if ! command -v golangci-lint &> /dev/null && [ ! -f "$(GOBIN)/golangci-lint" ]; then \
+	@if ! command -v golangci-lint &> /dev/null && [ ! -x "$(GOBIN)/golangci-lint" ]; then \
 		echo "golangci-lint not found. Install it with 'make golangci-lint'"; \
 		exit 1; \
 	fi
+	golangci-lint run
 
 vendor: ## Vendor dependencies.
 	go mod vendor -v
@@ -32,7 +33,7 @@ build: tidy lint vendor ## Build binaries (Linux only).
 	GOOS=linux go build -o bin/ ./...
 
 test: tidy lint vendor ## Run unit tests (Linux only).
-	CGO_ENABLED=1 GOOS=linux go test -v -race -coverprofile cover.out $(go list ./... | grep -v integration) ./...
+	CGO_ENABLED=1 GOOS=linux go test -v -race -coverprofile cover.out -tags '!integration' ./...
 
 docker-build: ## Build Docker image.
 	docker build \
