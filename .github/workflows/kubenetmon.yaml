@@ -7,6 +7,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
     paths:
       - '**'
 
@@ -61,6 +63,9 @@ jobs:
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
           images: gchr.io/clickhouse/kubenetmon
+          tags: |
+            type=sha
+            type=ref,event=branch
 
       - name: Build Docker image
         id: build
@@ -182,13 +187,11 @@ jobs:
 
       - name: Push to GitHub Container Registry
         run: |
-          IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
+          IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | grep sha | cut -d':' -f2)
           docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/clickhouse/kubenetmon:$IMAGE_TAG
           docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/clickhouse/kubenetmon:latest
           docker push ghcr.io/clickhouse/kubenetmon:$IMAGE_TAG
           docker push ghcr.io/clickhouse/kubenetmon:latest
-          gh pkg meta ghcr.io/clickhouse/kubenetmon:$IMAGE_TAG --visibility public
-          gh pkg meta ghcr.io/clickhouse/kubenetmon:latest --visibility public
 
   helm-publish:
     name: Package and publish Helm charts
@@ -206,12 +209,18 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
 
+      - name: Generate Version
+        id: version
+        run: |
+          # Use short commit SHA as the version
+          VERSION=$(git rev-parse --short HEAD)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Update chart version
         run: |
-          IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
           for chart in deploy/helm/kubenetmon-agent deploy/helm/kubenetmon-server; do
-            sed -i "s/^version:.*/version: $IMAGE_TAG/" $chart/Chart.yaml
-            sed -i "s/^appVersion:.*/appVersion: $IMAGE_TAG/" $chart/Chart.yaml
+            sed -i "s/^version:.*/version: $VERSION/" $chart/Chart.yaml
+            sed -i "s/^appVersion:.*/appVersion: $VERSION/" $chart/Chart.yaml
           done
 
       - name: Package Helm charts
@@ -221,16 +230,18 @@ jobs:
             helm package $chart --destination .cr-release-packages
           done
 
-      - name: Upload Helm chart to GitHub Release
+      - name: Upload Helm charts to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: .cr-release-packages/*
-          tag_name: ${{ needs.build-docker-image.outputs.image-tags }}
+          tag_name: latest
           generate_release_notes: true
 
       - name: Push charts to GHCR
         run: |
-          IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
           for chart in .cr-release-packages/*.tgz; do
-            helm push $chart oci://ghcr.io/clickhouse/kubenetmon/charts
+            # Push with the commit SHA
+            helm push $chart oci://ghcr.io/clickhouse/kubenetmon/charts --version $VERSION
+            # Push with the "latest" tag
+            helm push $chart oci://ghcr.io/clickhouse/kubenetmon/charts --version latest
           done

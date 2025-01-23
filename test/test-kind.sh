@@ -59,13 +59,15 @@ helm template kubenetmon-agent ./deploy/helm/kubenetmon-agent \
     -f ./deploy/helm/kubenetmon-agent/values.yaml \
     --set image.tag=1.0.0 \
     --set configuration.collectionInterval=1s \
+    --set configuration.skipConntrackSanityCheck=true \
     --namespace=kubenetmon-agent | kubectl apply -n kubenetmon-agent -f -
 echo "Waiting for kubenetmon-agent pods to be ready..."
 kubectl wait --namespace kubenetmon-agent --for=condition=ready pod -l app.kubernetes.io/name=kubenetmon-agent --timeout=180s
 
 echo "Kind cluster setup complete. Run 'kubectl get pods --all-namespaces' to verify."
-echo "Sleeping 30 seconds to let some traffic flow"
-sleep 30
+
+echo "Sleeping 60 seconds to let some traffic flow"
+sleep 60
 
 # Capture logs for debugging in CI
 echo "Fetching kubenetmon-server logs..."
