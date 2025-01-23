@@ -108,7 +108,6 @@ jobs:
         uses: helm/chart-testing-action@v2.7.0
 
       - name: Run chart-testing (lint)
-        if: steps.list-changed.outputs.changed == 'true'
         run: |
           ct lint \
             --config ct.yaml \
@@ -116,24 +115,20 @@ jobs:
             --chart-dirs deploy/helm --charts deploy/helm/kubenetmon-server,deploy/helm/kubenetmon-agent
 
       - name: Create kind cluster
-        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
         uses: helm/kind-action@v1.10.0
         with:
           config: ${{ github.workspace }}/test/kind-config.yaml
 
       - name: Set up kubectl
-        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
         uses: azure/setup-kubectl@v4
 
       - name: Create required resources for test
-        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
         run: |
-          kind load docker-image --name chart-testing ${{ needs.build-and-push-image.outputs.image-tags }}
+          kind load docker-image --name chart-testing ${{ needs.build-docker-image.outputs.image-tags }}
           kubectl create namespace kubenetmon-agent
           kubectl create namespace kubenetmon-server
 
       - name: Run chart-testing (install)
-        if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event.inputs.deploy_to_dev == 'true' || github.event.inputs.build_and_push == 'true' }}
         run: |
           cd kubenetmon/deploy/helm
           ct install \
@@ -143,8 +138,8 @@ jobs:
             --charts kubenetmon-agent \
             --namespace kubenetmon-agent \
             --helm-extra-set-args "\
-            --set=image.repository=$(echo ${{ needs.build-and-push-image.outputs.image-tags }} | cut -d':' -f1) \
-            --set=image.tag=$(echo ${{ needs.build-and-push-image.outputs.image-tags }} | cut -d':' -f2) \
+            --set=image.repository=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f1) \
+            --set=image.tag=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2) \
             --set=configuration.skipConntrackSanityCheck=true \
             --set=configuration.uptimeWaitDuration=1s"
           ct install \
@@ -154,8 +149,8 @@ jobs:
             --charts kubenetmon-server \
             --namespace kubenetmon-server \
             --helm-extra-set-args "\
-            --set=image.repository=$(echo ${{ needs.build-and-push-image.outputs.image-tags }} | cut -d':' -f1) \
-            --set=image.tag=$(echo ${{ needs.build-and-push-image.outputs.image-tags }} | cut -d':' -f2) \
+            --set=image.repository=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f1) \
+            --set=image.tag=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2) \
             --set=inserter.skipPing=true \
             --set=inserter.disableTLS=true \
             --set=deployment.replicaCount=1 \
@@ -190,8 +185,8 @@ jobs:
 
      - name: Push to GitHub Container Registry
        run: |
-         IMAGE_TAG=$(echo ${{ needs.build-and-push-image.outputs.image-tags }} | cut -d':' -f2)
-         docker tag ${{ needs.build-and-push-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:$IMAGE_TAG
-         docker tag ${{ needs.build-and-push-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:latest
+         IMAGE_TAG=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2)
+         docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:$IMAGE_TAG
+         docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/${{ github.repository }}:latest
          docker push ghcr.io/${{ github.repository }}:$IMAGE_TAG
          docker push ghcr.io/${{ github.repository }}:latest
