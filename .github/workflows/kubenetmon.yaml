@@ -46,29 +46,24 @@ jobs:
   build-docker-image:
     name: Build Docker image
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
     outputs:
       image-tags: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Determine Docker metadata
         id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        uses: docker/metadata-action@v5
         with:
-          images: gchr.io/clickhouse/kubenetmon
+          images: ghcr.io/clickhouse/kubenetmon
           tags: |
             type=sha
+            type=ref,event=tag
 
       - name: Build Docker image
         id: build
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: false
@@ -87,8 +82,8 @@ jobs:
 
   helm-test:
     name: Test chart
-    runs-on: ubuntu-latest
     needs: build-docker-image
+    runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -163,10 +158,7 @@ jobs:
     name: Publish Docker image
     needs: [golangci, test, build-docker-image, helm-test]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -189,8 +181,11 @@ jobs:
       - name: Generate Version
         id: version
         run: |
-          # Use short commit SHA as the version
-          VERSION="0.1.0-$(git rev-parse --short HEAD)"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION=$(git describe --tags --always 2>/dev/null || echo "0.1.0-$(git rev-parse --short HEAD)")
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Push to GitHub Container Registry
@@ -204,10 +199,7 @@ jobs:
     name: Package and publish Helm charts
     needs: [golangci, test, build-docker-image, helm-test]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
-      packages: write
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -218,6 +210,17 @@ jobs:
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Update chart version and app version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            STRIPPED_VERSION="${VERSION#v}"
+            sed -i "s/^version:.*/version: $STRIPPED_VERSION/" deploy/helm/*/Chart.yaml
+            sed -i "s/^appVersion:.*/appVersion: $VERSION/" deploy/helm/*/Chart.yaml
+          else
+            sed -i "s/^appVersion:.*/appVersion: ${{ github.sha }}/" deploy/helm/*/Chart.yaml
+          fi
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.7.0
