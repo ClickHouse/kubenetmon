@@ -35,8 +35,8 @@ CREATE TABLE default.network_flows_0
     `environment` LowCardinality(String) CODEC(ZSTD(1)),
     `proto` LowCardinality(String) CODEC(ZSTD(1)),
     `connectionClass` LowCardinality(String) CODEC(ZSTD(1)),
-    `connectionFlags` Map(String, Bool) CODEC(ZSTD(1)),
-    `direction` LowCardinality(String) CODEC(ZSTD(1)),
+    `connectionFlags` Map(LowCardinality(String), Bool) CODEC(ZSTD(1)),
+    `direction` Enum('out' = 1, 'in' = 2) CODEC(ZSTD(1)),
     `localCloud` LowCardinality(String) CODEC(ZSTD(1)),
     `localRegion` LowCardinality(String) CODEC(ZSTD(1)),
     `localCluster` LowCardinality(String) CODEC(ZSTD(1)),
@@ -44,7 +44,7 @@ CREATE TABLE default.network_flows_0
     `localAvailabilityZone` LowCardinality(String) CODEC(ZSTD(1)),
     `localNode` String CODEC(ZSTD(1)),
     `localInstanceID` String CODEC(ZSTD(1)),
-    `localNamespace` String CODEC(ZSTD(1)),
+    `localNamespace` LowCardinality(String) CODEC(ZSTD(1)),
     `localPod` String CODEC(ZSTD(1)),
     `localIPv4` IPv4 CODEC(Delta(4), ZSTD(1)),
     `localPort` UInt16 CODEC(Delta(2), ZSTD(1)),
@@ -56,7 +56,7 @@ CREATE TABLE default.network_flows_0
     `remoteAvailabilityZone` LowCardinality(String) CODEC(ZSTD(1)),
     `remoteNode` String CODEC(ZSTD(1)),
     `remoteInstanceID` String CODEC(ZSTD(1)),
-    `remoteNamespace` String CODEC(ZSTD(1)),
+    `remoteNamespace` LowCardinality(String) CODEC(ZSTD(1)),
     `remotePod` String CODEC(ZSTD(1)),
     `remoteIPv4` IPv4 CODEC(Delta(4), ZSTD(1)),
     `remotePort` UInt16 CODEC(Delta(2), ZSTD(1)),
@@ -85,7 +85,7 @@ helm upgrade --install --wait backend --namespace default --set redis.enabled=tr
 helm upgrade --install --wait frontend --namespace default --set redis.enabled=true podinfo/podinfo
 ```
 
-We now install `kubenetmon-server`. `kubenetmon-server` expects an environment, cluster name, cloud provider name (`aws`, `gcp`, or `azure`), and region, so we provide these. We are going to supply also connection credentials for our ClickHouse instance:
+We now install `kubenetmon-server`. `kubenetmon-server` expects an environment, cluster name, cloud provider name (`aws`, `gcp`, or `azure`), and region, so we provide these. We are also going to supply connection credentials for our ClickHouse instance:
 ```
 helm install kubenetmon-server kubenetmon-server/kubenetmon-server-1.0.0.tgz --namespace kubenetmon-server \
 --set image.repository=ghcr.io/clickhouse/kubenetmon \
