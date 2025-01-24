@@ -1,5 +1,5 @@
 image:
-  repository: local/kubenetmon
+  repository: ghcr.io/clickhouse/kubenetmon
   pullPolicy: IfNotPresent
   tag: ""
 

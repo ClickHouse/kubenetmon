@@ -41,6 +41,7 @@ kubectl create namespace kubenetmon-server
 kind load docker-image --name kind local/kubenetmon:1.0.0
 helm template kubenetmon-server ./deploy/helm/kubenetmon-server \
     -f ./deploy/helm/kubenetmon-server/values.yaml \
+    --set image.repository=local/kubenetmon \
     --set image.tag=1.0.0 \
     --set deployment.replicaCount=1 \
     --set inserter.batchSize=10 \
@@ -57,6 +58,7 @@ kubectl create namespace kubenetmon-agent
 kind load docker-image --name kind local/kubenetmon:1.0.0
 helm template kubenetmon-agent ./deploy/helm/kubenetmon-agent \
     -f ./deploy/helm/kubenetmon-agent/values.yaml \
+    --set image.repository=local/kubenetmon \
     --set image.tag=1.0.0 \
     --set configuration.collectionInterval=1s \
     --set configuration.skipConntrackSanityCheck=true \
