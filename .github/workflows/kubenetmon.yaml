@@ -72,7 +72,9 @@ jobs:
           load: true
 
       - name: Save image as artifact
-        run: docker save -o image.tar $(echo "${{ steps.meta.outputs.tags }}" | cut -d',' -f1)
+        run: |
+          first_tag=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+          docker save -o image.tar $first_tag
       
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
@@ -119,7 +121,7 @@ jobs:
 
       - name: Create required resources for test
         run: |
-          first_tag=$(echo "${{ needs.build-docker-image.outputs.image-tags }}" | cut -d',' -f1)
+          first_tag=$(echo "${{ needs.build-docker-image.outputs.image-tags }}" | head -n 1)
           kind load docker-image --name chart-testing $first_tag
           kubectl create namespace kubenetmon-agent
           kubectl create namespace kubenetmon-server
@@ -127,7 +129,7 @@ jobs:
       - name: Run chart-testing (install)
         run: |
           cd deploy/helm
-          first_tag=$(echo "${{ needs.build-docker-image.outputs.image-tags }}" | cut -d',' -f1)
+          first_tag=$(echo "${{ needs.build-docker-image.outputs.image-tags }}" | head -n 1)
           repository=$(echo $first_tag | cut -d':' -f1)
           tag=$(echo $first_tag | cut -d':' -f2)
           
