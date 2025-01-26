@@ -63,7 +63,7 @@ jobs:
 
       - name: Build Docker image
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
@@ -72,7 +72,7 @@ jobs:
           load: true
 
       - name: Save image as artifact
-        run: docker save -o image.tar ${{ steps.meta.outputs.tags }}
+        run: docker save -o image.tar $(echo "${{ steps.meta.outputs.tags }}" | cut -d',' -f1)
       
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
@@ -119,13 +119,18 @@ jobs:
 
       - name: Create required resources for test
         run: |
-          kind load docker-image --name chart-testing ${{ needs.build-docker-image.outputs.image-tags }}
+          first_tag=$(echo "${{ needs.build-docker-image.outputs.image-tags }}" | cut -d',' -f1)
+          kind load docker-image --name chart-testing $first_tag
           kubectl create namespace kubenetmon-agent
           kubectl create namespace kubenetmon-server
 
       - name: Run chart-testing (install)
         run: |
           cd deploy/helm
+          first_tag=$(echo "${{ needs.build-docker-image.outputs.image-tags }}" | cut -d',' -f1)
+          repository=$(echo $first_tag | cut -d':' -f1)
+          tag=$(echo $first_tag | cut -d':' -f2)
+          
           ct install \
             --config ../../ct.yaml \
             --target-branch ${{ github.event.repository.default_branch }} \
@@ -133,10 +138,11 @@ jobs:
             --charts kubenetmon-agent \
             --namespace kubenetmon-agent \
             --helm-extra-set-args "\
-            --set=image.repository=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f1) \
-            --set=image.tag=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2) \
+            --set=image.repository=$repository \
+            --set=image.tag=$tag \
             --set=configuration.skipConntrackSanityCheck=true \
             --set=configuration.uptimeWaitDuration=1s"
+          
           ct install \
             --config ../../ct.yaml \
             --target-branch ${{ github.event.repository.default_branch }} \
@@ -144,8 +150,8 @@ jobs:
             --charts kubenetmon-server \
             --namespace kubenetmon-server \
             --helm-extra-set-args "\
-            --set=image.repository=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f1) \
-            --set=image.tag=$(echo ${{ needs.build-docker-image.outputs.image-tags }} | cut -d':' -f2) \
+            --set=image.repository=$repository \
+            --set=image.tag=$tag \
             --set=inserter.skipPing=true \
             --set=inserter.disableTLS=true \
             --set=deployment.replicaCount=1 \
@@ -181,22 +187,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate Version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${{ github.ref_name }}"
-          else
-            VERSION=$(git describe --tags --always 2>/dev/null || echo "0.1.0-$(git rev-parse --short HEAD)")
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
       - name: Push to GitHub Container Registry
-        run: |
-          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/clickhouse/kubenetmon:$VERSION
-          docker tag ${{ needs.build-docker-image.outputs.image-tags }} ghcr.io/clickhouse/kubenetmon:latest
-          docker push ghcr.io/clickhouse/kubenetmon:$VERSION
-          docker push ghcr.io/clickhouse/kubenetmon:latest
+        run: docker push ${{ needs.build-docker-image.outputs.image-tags }}
 
   helm-publish:
     name: Package and publish Helm charts
@@ -223,7 +215,7 @@ jobs:
             VERSION="${{ github.ref_name }}"
             STRIPPED_VERSION="${VERSION#v}"
             sed -i "s/^version:.*/version: $STRIPPED_VERSION/" deploy/helm/*/Chart.yaml
-            sed -i "s/^appVersion:.*/appVersion: $VERSION/" deploy/helm/*/Chart.yaml
+            sed -i "s/^appVersion:.*/appVersion: $STRIPPED_VERSION/" deploy/helm/*/Chart.yaml
           else
             sed -i "s/^appVersion:.*/appVersion: ${{ github.sha }}/" deploy/helm/*/Chart.yaml
           fi
