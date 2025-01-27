@@ -14,13 +14,10 @@ At ClickHouse Cloud, we use `kubenetmon` to meter data transfer of all of our wo
 ## How does kubenetmon work?
 ### Components
 `kubenetmon` consists of two components:
-- `kubenetmon-agent` is a DaemonSet that collects information about connections on a node and forwards connection records to `kubenetmon-server` over gRPC.
+- `kubenetmon-agent` is a DaemonSet that collects information about connections on a node and forwards connection records to `kubenetmon-server` over gRPC. `kubenetmon-agent` gets connection information from Linux's conntrack (if you can use `iptables` with your CNI, you can use `kubenetmon`).
 - `kubenetmon-server` is a ReplicaSet that watches the state of the Kubernetes cluster, attributes connection records to Kubernetes workloads, and inserts the records into ClickHouse.
 
 The final component, ClickHouse, which we use as the destination of our data and an analytics engine, can be self-hosted or run in [ClickHouse Cloud](clickhouse.cloud).
-
-### Implementation
-`kubenetmon-agent` gets connection information from Linux's conntrack (if you can use `iptables`, you can use `kubenetmon`). At ClickHouse Cloud, we use it alongside Cilium's legacy host-routing.
 
 ## Using kubenetmon
 `kubenetmon` comes in two Helm charts, `kubenetmon-server` and `kubenetmon-agent`. Both use the same Docker image. Starting with `kubenetmon` is very easy.
@@ -178,7 +175,7 @@ ORDER BY sum(bytes) DESC;
 | kubenetmon-server-6d5ff494fb-wvs8d      | ''                                      | INTRA_VPC       | 19.24 KiB                      |
 | backend-podinfo-redis-5d6c77b77c-t5vfh  | ''                                      | INTRA_VPC       | 2.46 KiB                       |
 | frontend-podinfo-redis-546897f5bc-hqsml | ''                                      | INTRA_VPC       | 2.46 KiB                       |
-| frontend-podinfo-5b58f98bbf-bfsw6       | frontend-podinfo-redis-546897f5bc-hqsml |  INTRA_VPC      | 2.06 KiB                       |
+| frontend-podinfo-5b58f98bbf-bfsw6       | frontend-podinfo-redis-546897f5bc-hqsml | INTRA_VPC       | 2.06 KiB                       |
 | backend-podinfo-7fc7494945-pcj8h        | backend-podinfo-redis-5d6c77b77c-t5vfh  | INTRA_VPC       | 2.05 KiB                       |
 | frontend-podinfo-redis-546897f5bc-hqsml | frontend-podinfo-5b58f98bbf-bfsw6       | INTRA_VPC       | 865.00 B                       |
 +-----------------------------------------+-----------------------------------------+-----------------+--------------------------------+
