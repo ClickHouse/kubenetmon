@@ -228,7 +228,7 @@ jobs:
             VERSION="${{ github.ref_name }}"
             STRIPPED_VERSION="${VERSION#v}"
             sed -i "s/^version:.*/version: $STRIPPED_VERSION/" deploy/helm/*/Chart.yaml
-            sed -i "s/^appVersion:.*/appVersion: $STRIPPED_VERSION/" deploy/helm/*/Chart.yaml
+            sed -i "s/^appVersion:.*/appVersion: $VERSION/" deploy/helm/*/Chart.yaml
           else
             sed -i "s/^appVersion:.*/appVersion: ${{ github.sha }}/" deploy/helm/*/Chart.yaml
           fi
