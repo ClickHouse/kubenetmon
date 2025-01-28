@@ -1,7 +1,9 @@
 # kubenetmon
 
 ## What is kubenetmon?
-`kubenetmon` is a service built and used at [ClickHouse](clickhouse.com) for Kubernetes data transfer metering in all 3 major cloud providers: AWS, GCP, and Azure.
+`kubenetmon` is a service built and used at [ClickHouse](https://clickhouse.com) for Kubernetes data transfer metering in all 3 major cloud providers: AWS, GCP, and Azure.
+
+`kubenetmon` is packaged as a Helm chart with a Docker image. The chart is available at [https://kubenetmon.clickhouse.tech/index.yaml](https://kubenetmon.clickhouse.tech/index.yaml). See below for detailed usage instructions.
 
 ## What can kubenetmon be used for?
 At ClickHouse Cloud, we use `kubenetmon` to meter data transfer of all of our workloads running in Kubernetes. With the data `kubenetmon` collects and stores in ClickHouse, we are able to answer questions such as:
@@ -70,23 +72,35 @@ TTL intervalStartTime + toIntervalDay(90)
 SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
 ```
 
-All you now need is a Kubernetes cluster where you want to meter data transfer. First, we create two namespaces:
+All you now need is a Kubernetes cluster where you want to meter data transfer.
+
+(**Optional**) If you don't have a test k8s cluster, you can spin up a `kind` cluster using config in this repository like so:
+```
+kind create cluster --config=test/kind-config.yaml
+```
+
+(**Optional**) And if you don't have many workloads running in the cluster, you can install some mock services)
+```
+helm repo add podinfo https://stefanprodan.github.io/podinfo
+helm upgrade --install --wait backend --namespace default --set redis.enabled=true podinfo/podinfo
+helm upgrade --install --wait frontend --namespace default --set redis.enabled=true podinfo/podinfo
+```
+
+Next, we create two namespaces:
 ```
 kubectl create namespace kubenetmon-server
 kubectl create namespace kubenetmon-agent
 ```
 
-**Optional** (if you don't have many workloads running in the cluster, you can install some mock services)
+Let's add this Helm repository:
 ```
-helm upgrade --install --wait backend --namespace default --set redis.enabled=true podinfo/podinfo
-helm upgrade --install --wait frontend --namespace default --set redis.enabled=true podinfo/podinfo
+helm repo add kubenetmon https://kubenetmon.clickhouse.tech
 ```
 
 We now install `kubenetmon-server`. `kubenetmon-server` expects an environment, cluster name, cloud provider name (`aws`, `gcp`, or `azure`), and region, so we provide these. We are also going to supply connection credentials for our ClickHouse instance:
 ```
-helm install kubenetmon-server kubenetmon-server/kubenetmon-server-1.0.0.tgz --namespace kubenetmon-server \
---set image.repository=ghcr.io/clickhouse/kubenetmon \
---set image.tag=latest \
+helm install kubenetmon-server kubenetmon/kubenetmon-server \
+--namespace kubenetmon-server \
 --set region=us-west-2 \
 --set cluster=cluster \
 --set environment=development \
@@ -117,19 +131,16 @@ you need to enable it on the nodes with:
 ```
 **This is an important step, don't skip it!**
 
-For example, to test getting data transfer information from just one node, I can run:
+For example, to test getting data transfer information from all nodes in the kind cluster, you can run:
 ```
-➜  ~ kubectl node-shell kind-worker
-spawning "nsenter-b3sdnm" on "kind-worker"
-If you don't see a command prompt, try pressing enter.
-root@kind-worker:/# /bin/echo "1" > /proc/sys/net/netfilter/nf_conntrack_acct
+for node in $(kubectl get nodes -o name); do
+  kubectl node-shell ${node##node/} -- /bin/sh -c '/bin/echo "1" > /proc/sys/net/netfilter/nf_conntrack_acct'
+done
 ```
 
-This node is now ready to host `kubenetmon-agent`, so let's install it.
+Nodes are now ready to host `kubenetmon-agent`, so let's install it.
 ```
-helm install kubenetmon-agent kubenetmon-agent/kubenetmon-agent-1.0.0.tgz --namespace kubenetmon-agent \
---set image.repository=ghcr.io/clickhouse/kubenetmon \
---set image.tag=latest
+helm install kubenetmon-agent kubenetmon/kubenetmon-agent --namespace kubenetmon-agent
 ```
 
 Let's check the logs:
