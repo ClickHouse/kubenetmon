@@ -79,7 +79,7 @@ All you now need is a Kubernetes cluster where you want to meter data transfer.
 kind create cluster --config=test/kind-config.yaml
 ```
 
-(**Optional**) And if you don't have many workloads running in the cluster, you can install some mock services)
+(**Optional**) And if you don't have many workloads running in the cluster, you can install some mock services:
 ```
 helm repo add podinfo https://stefanprodan.github.io/podinfo
 helm upgrade --install --wait backend --namespace default --set redis.enabled=true podinfo/podinfo
