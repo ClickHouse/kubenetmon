@@ -1,4 +1,11 @@
 # kubenetmon
+[![Go Report Card](https://goreportcard.com/badge/github.com/ClickHouse/kubenetmon)](https://goreportcard.com/report/github.com/ClickHouse/kubenetmon)
+![Lint and test charts and code](https://github.com/ClickHouse/kubenetmon/actions/workflows/kubenetmon.yaml/badge.svg)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+![GitHub Release](https://img.shields.io/github/v/release/ClickHouse/kubenetmon?display_name=release)
+
+### 📢 💛 News
+> **Blog:** Read kubenetmon announcement blogpost and learn how it was built: [https://clickhouse.com/blog/kubenetmon-open-sourced](https://clickhouse.com/blog/kubenetmon-open-sourced)!
 
 ## What is kubenetmon?
 `kubenetmon` is a service built and used at [ClickHouse](https://clickhouse.com) for Kubernetes data transfer metering in all 3 major cloud providers: AWS, GCP, and Azure.
