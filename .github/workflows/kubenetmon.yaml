@@ -1,4 +1,4 @@
-name: Main workflow
+name: Lint and test charts and code
 
 on:
   pull_request:
