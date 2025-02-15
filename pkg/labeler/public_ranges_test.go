@@ -279,6 +279,31 @@ func TestRefreshRemoteIPs(t *testing.T) {
 		assert.Equal(t, "service1", detail.service)
 		assert.Equal(t, "us-east-1", detail.region)
 	})
+
+	t.Run("Test Custom az", func(t *testing.T) {
+		custom := CustomIPRanges{
+			Prefixes: []CustomPrefix{
+				{IPPrefixStr: "10.1.1.16/32", Service: "redis", AvailabilityZone: "us-west-2a"},
+			},
+		}
+		aws := AWSIPRanges{}
+		gcp := GCPIPRanges{}
+		google := GoogleIPRanges{}
+		azure := AzureIPRanges{}
+
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
+		assert.NoError(t, err)
+		assert.NotNil(t, remoteIPRanges)
+		assert.NotNil(t, trie)
+
+		assert.Equal(t, 1, len(remoteIPRanges))
+		ip, err := ipaddr.NewIPAddressString("10.1.1.16/32").ToAddress()
+		assert.NoError(t, err)
+		assert.NotNil(t, ip)
+		detail := remoteIPRanges[ip.ToIPv4().ToKey()]
+		assert.Equal(t, "redis", detail.service)
+		assert.Equal(t, "us-west-2a", detail.az)
+	})
 }
 
 func TestNormalizeCloudString(t *testing.T) {

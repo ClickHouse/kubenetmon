@@ -15,7 +15,7 @@ RUN [[ $(ls -1 vendor/ | wc -l) -gt 0 ]] || (echo "Expected 'vendor' dependencie
 COPY cmd/ cmd/
 COPY pkg/ pkg/
 
-COPY custom_ranges.json /etc/kubenetmon/custom_ranges.json
+COPY test/custom_ranges.json /etc/kubenetmon/custom_ranges.json
 
 # Build
 ARG VERSION=dev
