@@ -29,8 +29,9 @@ func TestRefreshRemoteIPs(t *testing.T) {
 		gcp := GCPIPRanges{}
 		google := GoogleIPRanges{}
 		azure := AzureIPRanges{}
+		custom := CustomIPRanges{}
 
-		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure)
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 		assert.NoError(t, err)
 		assert.NotNil(t, remoteIPRanges)
 		assert.NotNil(t, trie)
@@ -62,8 +63,9 @@ func TestRefreshRemoteIPs(t *testing.T) {
 		gcp := GCPIPRanges{}
 		google := GoogleIPRanges{}
 		azure := AzureIPRanges{}
+		custom := CustomIPRanges{}
 
-		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure)
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 		assert.Error(t, err)
 		assert.Nil(t, remoteIPRanges)
 		assert.Nil(t, trie)
@@ -78,8 +80,9 @@ func TestRefreshRemoteIPs(t *testing.T) {
 		}
 		google := GoogleIPRanges{}
 		azure := AzureIPRanges{}
+		custom := CustomIPRanges{}
 
-		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure)
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 		assert.NoError(t, err)
 		assert.NotNil(t, remoteIPRanges)
 		assert.NotNil(t, trie)
@@ -103,8 +106,9 @@ func TestRefreshRemoteIPs(t *testing.T) {
 		}
 		google := GoogleIPRanges{}
 		azure := AzureIPRanges{}
+		custom := CustomIPRanges{}
 
-		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure)
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 		assert.Error(t, err)
 		assert.Nil(t, remoteIPRanges)
 		assert.Nil(t, trie)
@@ -119,8 +123,9 @@ func TestRefreshRemoteIPs(t *testing.T) {
 			},
 		}
 		azure := AzureIPRanges{}
+		custom := CustomIPRanges{}
 
-		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure)
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 		assert.NoError(t, err)
 		assert.NotNil(t, remoteIPRanges)
 		assert.NotNil(t, trie)
@@ -144,8 +149,9 @@ func TestRefreshRemoteIPs(t *testing.T) {
 			},
 		}
 		azure := AzureIPRanges{}
+		custom := CustomIPRanges{}
 
-		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure)
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 		assert.Error(t, err)
 		assert.Nil(t, remoteIPRanges)
 		assert.Nil(t, trie)
@@ -195,8 +201,9 @@ func TestRefreshRemoteIPs(t *testing.T) {
 				},
 			},
 		}
+		custom := CustomIPRanges{}
 
-		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure)
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 		assert.NoError(t, err)
 		assert.NotNil(t, remoteIPRanges)
 		assert.NotNil(t, trie)
@@ -234,8 +241,9 @@ func TestRefreshRemoteIPs(t *testing.T) {
 				},
 			},
 		}
+		custom := CustomIPRanges{}
 
-		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure)
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 		assert.Error(t, err)
 		assert.Nil(t, remoteIPRanges)
 		assert.Nil(t, trie)
@@ -256,8 +264,9 @@ func TestRefreshRemoteIPs(t *testing.T) {
 		gcp := GCPIPRanges{}
 		google := GoogleIPRanges{}
 		azure := AzureIPRanges{}
+		custom := CustomIPRanges{}
 
-		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure)
+		remoteIPRanges, trie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 		assert.NoError(t, err)
 		assert.NotNil(t, remoteIPRanges)
 		assert.NotNil(t, trie)
