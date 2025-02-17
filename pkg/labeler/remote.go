@@ -1,7 +1,9 @@
 package labeler
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -56,7 +58,12 @@ func NewRemoteLabeler(localRegion string, localCloud Cloud, environment Environm
 		errorCounter.WithLabelValues([]string{"get_cloud_ranges"}...).Inc()
 		return nil, fmt.Errorf("error fetching cloud ranges: %v", err)
 	}
-	remoteIPPrefixes, remoteIPPrefixesTrie, err := refreshRemoteIPs(aws, gcp, google, azure)
+	custom, err := getCustomRanges()
+	if err != nil {
+		errorCounter.WithLabelValues([]string{"get_custom_ranges"}...).Inc()
+		return nil, fmt.Errorf("error fetching custom ranges: %v", err)
+	}
+	remoteIPPrefixes, remoteIPPrefixesTrie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 	if err != nil {
 		errorCounter.WithLabelValues([]string{"remote_ips_refresh"}...).Inc()
 		publicIPRefreshCounter.WithLabelValues([]string{"failed"}...).Inc()
@@ -106,7 +113,14 @@ func NewRemoteLabeler(localRegion string, localCloud Cloud, environment Environm
 				log.Error().Err(err).Msg("failed to refresh cloud provider IPs")
 				continue
 			}
-			remoteIPPrefixes, remoteIPPrefixesTrie, err := refreshRemoteIPs(aws, gcp, google, azure)
+			custom, err := getCustomRanges()
+			if err != nil {
+				errorCounter.WithLabelValues([]string{"get_custom_ranges"}...).Inc()
+				publicIPRefreshCounter.WithLabelValues([]string{"failed"}...).Inc()
+				log.Error().Err(err).Msg("failed to refresh custom provider IPs")
+				continue
+			}
+			remoteIPPrefixes, remoteIPPrefixesTrie, err := refreshRemoteIPs(aws, gcp, google, azure, custom)
 			if err != nil {
 				errorCounter.WithLabelValues([]string{"remote_ips_refresh"}...).Inc()
 				publicIPRefreshCounter.WithLabelValues([]string{"failed"}...).Inc()
@@ -144,6 +158,7 @@ func (l *RemoteLabeler) labelRemote(remoteEndpoint *endpointInfo, FlowData *Flow
 	FlowData.RemoteRegion = remoteDetail.region
 	FlowData.RemoteCloudService = remoteDetail.service
 	FlowData.RemoteCloud = remoteDetail.cloud
+	FlowData.RemoteAvailabilityZone = remoteDetail.az
 
 	if remoteDetail.cloud == l.cloud {
 		if remoteDetail.region == "" {
@@ -207,4 +222,18 @@ func getCloudRanges() (awsIPRanges AWSIPRanges, gcpIPRanges GCPIPRanges, googleI
 	}
 
 	return
+}
+
+func getCustomRanges() (customIPRanges CustomIPRanges, err error) {
+	body, err := os.ReadFile("/etc/kubenetmon/custom_ranges.json")
+	if err != nil {
+		return customIPRanges, err
+	}
+
+	err = json.Unmarshal(body, &customIPRanges)
+	if err != nil {
+		return customIPRanges, err
+	}
+
+	return customIPRanges, err
 }
