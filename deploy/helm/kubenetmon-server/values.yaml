@@ -57,7 +57,7 @@ inserter:
   database: "default"
   endpoint: "clickhouse.default.svc.cluster.local:9000"
   username: "default"
-  password: ""
+  password: "clickhouse"
   dialTimeout: 30s
   maxIdleConnections: 50
   batchSize: 15000

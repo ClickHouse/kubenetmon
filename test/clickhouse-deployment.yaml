@@ -18,6 +18,11 @@ spec:
       containers:
       - name: clickhouse
         image: clickhouse/clickhouse-server:latest
+        env:
+        - name: CLICKHOUSE_USER
+          value: "default"
+        - name: CLICKHOUSE_PASSWORD
+          value: "clickhouse"
         ports:
         - containerPort: 8123
         - containerPort: 9000
