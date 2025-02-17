@@ -13,7 +13,7 @@ import (
 
 // Run this using Makefile & test/test-kind.sh so that necessary dependencies are spun up.
 func TestEndToEnd(t *testing.T) {
-	conn, err := sql.Open("clickhouse", "tcp://127.0.0.1:9000?username=default")
+	conn, err := sql.Open("clickhouse", "tcp://127.0.0.1:9000?username=default&password=clickhouse")
 	if err != nil {
 		t.Fatalf("Failed to connect to ClickHouse: %v", err)
 	}
