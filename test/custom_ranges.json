@@ -1,0 +1,12 @@
+{
+    "syncToken": "1739569991",
+    "createDate": "2025-02-14-21-53-11",
+    "prefixes": [
+      {
+        "ip_prefix": "10.16.1.16/32",
+        "az": "ap-southeast-2b",
+        "service": "redis"
+      }
+    ]
+}
+  

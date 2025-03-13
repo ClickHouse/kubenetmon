@@ -142,10 +142,23 @@ type AzurePrefixGroupProperties struct {
 	NetworkFeatures []string `json:"networkFeatures"`
 }
 
+/* Custom IP range structs */
+type CustomIPRanges struct {
+	SyncToken    string          `json:"syncToken"`
+	CreateDate   string          `json:"createDate"`
+	Prefixes     []CustomPrefix     `json:"prefixes"`
+}
+type CustomPrefix struct {
+	IPPrefixStr        string `json:"ip_prefix"`
+	AvailabilityZone   string `json:"az"`
+	Service            string `json:"service"`
+}
+
 type remoteIPPrefixDetail struct {
 	cloud   Cloud
 	service string
 	region  string
+	az string
 }
 
 func (d *remoteIPPrefixDetail) Normalize() {
@@ -167,7 +180,7 @@ var awsServicePriorities map[string]int = map[string]int{
 	"ec2":    2,
 }
 
-func refreshRemoteIPs(aws AWSIPRanges, gcp GCPIPRanges, google GoogleIPRanges, azure AzureIPRanges) (map[ipaddr.IPv4AddressKey]remoteIPPrefixDetail, *ipaddr.IPv4AddressTrie, error) {
+func refreshRemoteIPs(aws AWSIPRanges, gcp GCPIPRanges, google GoogleIPRanges, azure AzureIPRanges, custom CustomIPRanges) (map[ipaddr.IPv4AddressKey]remoteIPPrefixDetail, *ipaddr.IPv4AddressTrie, error) {
 	remoteIPRanges := make(map[ipaddr.IPv4AddressKey]remoteIPPrefixDetail)
 	trie := ipaddr.NewIPv4AddressTrie()
 
@@ -208,6 +221,21 @@ func refreshRemoteIPs(aws AWSIPRanges, gcp GCPIPRanges, google GoogleIPRanges, a
 				remoteIPRanges[ip.ToIPv4().ToKey()] = d
 			}
 		}
+	}
+
+	for _, prefix := range custom.Prefixes {
+		ip, err := ipaddr.NewIPAddressString(prefix.IPPrefixStr).ToAddress()
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid IPv4 address %s", prefix.IPPrefixStr)
+		}
+		trie.Add(ip.ToIPv4())
+		d := remoteIPPrefixDetail{
+			cloud:   AWS,
+			service: prefix.Service,
+			az: prefix.AvailabilityZone,
+		}
+		d.Normalize()
+		remoteIPRanges[ip.ToIPv4().ToKey()] = d
 	}
 
 	// Parse the prefix, we only care about IPv4 right now.
