@@ -3,14 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strings"
-	"time"
-
 	"net"
 	"net/http"
 	"os"
 	"runtime"
 	"runtime/debug"
+	"strings"
+	"time"
 
 	yaml "gopkg.in/yaml.v3"
 	"k8s.io/client-go/kubernetes"
@@ -46,6 +45,7 @@ type Config struct {
 	ClickHouseWaitForAsyncInsert bool          `yaml:"clickhouse_wait_for_async_insert"`
 	ClickHouseSkipPing           bool          `yaml:"clickhouse_skip_ping"`
 	ClickHouseDisableTLS         bool          `yaml:"clickhouse_disable_tls"`
+	ClickHouseInsecureSkipVerify bool          `yaml:"clickhouse_insecure_skip_verify"`
 
 	ClickHouseUsername string
 	ClickHousePassword string
@@ -57,9 +57,7 @@ const (
 	defaultClickHousePasswordPath string = "/etc/clickhouse/password"
 )
 
-var (
-	configMap = Config{}
-)
+var configMap = Config{}
 
 func init() {
 	b, err := os.ReadFile(defaultClickHouseConfigPath)
@@ -72,7 +70,7 @@ func init() {
 	}
 
 	if configMap.IgnoreUDP == nil {
-		var b = true
+		b := true
 		configMap.IgnoreUDP = &b
 	}
 
@@ -176,6 +174,7 @@ func main() {
 		BatchSize:          configMap.ClickHouseBatchSize,
 		BatchSendTimeout:   configMap.ClickHouseBatchSendTimeout,
 		WaitForAsyncInsert: configMap.ClickHouseWaitForAsyncInsert,
+		InsecureSkipVerify: configMap.ClickHouseInsecureSkipVerify,
 
 		SkipPing:   configMap.ClickHouseSkipPing,
 		DisableTLS: configMap.ClickHouseDisableTLS,
@@ -188,7 +187,7 @@ func main() {
 
 	server := NewFlowHandlerServer(labeler, inserter)
 	go func() {
-		var opts = []grpc.ServerOption{
+		opts := []grpc.ServerOption{
 			grpc.KeepaliveParams(keepalive.ServerParameters{
 				MaxConnectionAge:      configMap.MaxGRPCConnectionAge,
 				MaxConnectionAgeGrace: 1 * time.Minute,

@@ -71,6 +71,8 @@ inserter:
   skipPing: false
   # Disable TLS to ClickHouse. This is useful for testing.
   disableTLS: false
+  # setup insecure skip verify on TLS connection. Useful on TLS connection intern to clickhouse
+  insecureSkipVerify: false
 
 deployment:
   replicaCount: 3
