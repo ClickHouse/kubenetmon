@@ -52,6 +52,8 @@ type ClickHouseOptions struct {
 	SkipPing bool
 	// Disable TLS on ClickHouse connection.
 	DisableTLS bool
+	// Allow TLS with unverified certificates
+	InsecureSkipVerify bool
 }
 
 // Observation is a conntrack observation from kubenetmon-agent labeled by the
@@ -132,7 +134,7 @@ func createClickHouseConnectionWithOptions(ctx context.Context, clickhouseOption
 	}
 	// Configure TLS if need be.
 	if !clickhouseOptions.DisableTLS {
-		options.TLS = &tls.Config{}
+		options.TLS = &tls.Config{InsecureSkipVerify: clickhouseOptions.InsecureSkipVerify}
 	}
 
 	conn, err := clickhouse.Open(&options)

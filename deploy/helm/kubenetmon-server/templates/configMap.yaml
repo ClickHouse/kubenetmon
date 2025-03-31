@@ -26,3 +26,4 @@ data:
     clickhouse_wait_for_async_insert: {{ .Values.inserter.waitForAsyncInsert }}
     clickhouse_skip_ping: {{ .Values.inserter.skipPing }}
     clickhouse_disable_tls: {{ .Values.inserter.disableTLS }}
+    clickhouse_insecure_skip_verify: {{ .Values.inserter.insecureSkipVerify }}
