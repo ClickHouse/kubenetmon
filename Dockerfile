@@ -15,11 +15,14 @@ RUN [[ $(ls -1 vendor/ | wc -l) -gt 0 ]] || (echo "Expected 'vendor' dependencie
 COPY cmd/ cmd/
 COPY pkg/ pkg/
 
+COPY test/custom_ranges.json /etc/kubenetmon/custom_ranges.json
+
 # Build
 ARG VERSION=dev
 ARG GIT_COMMIT=unspecified
 ARG TARGETOS TARGETARCH
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -a -o bin/ ./...
+RUN CGO_ENABLED=1 GOOS=linux go test -v -race -coverprofile cover.out -tags '!integration' ./...
 
 # Use distroless as minimal base image to package the kubenetmon binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
