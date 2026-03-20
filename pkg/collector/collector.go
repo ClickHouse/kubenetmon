@@ -27,6 +27,32 @@ const (
 	IP_PROTO_UDP = 17
 )
 
+// FlowSummary is a lightweight representation of a conntrack flow that only
+// contains the fields used by kubenetmon (tuples and counters). Converting
+// []conntrack.Flow to []FlowSummary immediately after a dump allows the
+// heavier conntrack.Flow slice to be garbage collected, reducing peak memory.
+type FlowSummary struct {
+	TupleOrig     conntrack.Tuple
+	TupleReply    conntrack.Tuple
+	CountersOrig  conntrack.Counter
+	CountersReply conntrack.Counter
+}
+
+// toFlowSummaries converts a slice of conntrack.Flow to a slice of
+// FlowSummary, extracting only the fields that kubenetmon needs.
+func toFlowSummaries(flows []conntrack.Flow) []FlowSummary {
+	summaries := make([]FlowSummary, len(flows))
+	for i, f := range flows {
+		summaries[i] = FlowSummary{
+			TupleOrig:     f.TupleOrig,
+			TupleReply:    f.TupleReply,
+			CountersOrig:  f.CountersOrig,
+			CountersReply: f.CountersReply,
+		}
+	}
+	return summaries
+}
+
 var (
 	localhost = netip.AddrFrom4([4]byte{127, 0, 0, 1})
 )
@@ -131,10 +157,14 @@ func (collector *Collector) collectOnce() error {
 	}
 
 	now := collector.clock.Now()
-	flows, err := collector.conntrack.Dump(&conntrack.DumpOptions{ZeroCounters: true})
+	rawFlows, err := collector.conntrack.Dump(&conntrack.DumpOptions{ZeroCounters: true})
 	if err != nil {
 		return fmt.Errorf("could not dump conntrack: %v", err)
 	}
+
+	// Convert to lightweight summaries so the larger []conntrack.Flow can be GC'd.
+	flows := toFlowSummaries(rawFlows)
+	rawFlows = nil
 
 	for _, flow := range flows {
 		if ignore := collector.shouldIgnoreFlow(&flow); ignore {
@@ -224,7 +254,7 @@ func (collector *Collector) conntrackCountsNonEmpty(uptimeWaitDuration time.Dura
 
 // shouldIgnoreFlow returns true if the flow is to be ignored and not reported
 // to the server for labelling, for example because it's a localhost flow.
-func (collector *Collector) shouldIgnoreFlow(flow *conntrack.Flow) bool {
+func (collector *Collector) shouldIgnoreFlow(flow *FlowSummary) bool {
 	// Ignore flows with no data to report.
 	if flow.CountersOrig.Bytes == 0 && flow.CountersOrig.Packets == 0 && flow.CountersReply.Bytes == 0 && flow.CountersReply.Packets == 0 {
 		return true

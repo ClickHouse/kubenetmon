@@ -149,6 +149,91 @@ func TestConntrackCountsNonEmpty(t *testing.T) {
 	})
 }
 
+func TestToFlowSummaries(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Should convert empty slice", func(t *testing.T) {
+		t.Parallel()
+		summaries := toFlowSummaries(nil)
+		assert.Empty(t, summaries)
+	})
+
+	t.Run("Should extract only tuples and counters", func(t *testing.T) {
+		t.Parallel()
+
+		flows := []conntrack.Flow{
+			{
+				// Fields that should be preserved.
+				TupleOrig: conntrack.Tuple{
+					Proto: conntrack.ProtoTuple{
+						Protocol:        IP_PROTO_TCP,
+						SourcePort:      1234,
+						DestinationPort: 80,
+					},
+					IP: conntrack.IPTuple{
+						SourceAddress:      netip.MustParseAddr("10.0.0.1"),
+						DestinationAddress: netip.MustParseAddr("10.0.0.2"),
+					},
+				},
+				TupleReply: conntrack.Tuple{
+					Proto: conntrack.ProtoTuple{
+						Protocol:        IP_PROTO_TCP,
+						SourcePort:      80,
+						DestinationPort: 1234,
+					},
+					IP: conntrack.IPTuple{
+						SourceAddress:      netip.MustParseAddr("10.0.0.2"),
+						DestinationAddress: netip.MustParseAddr("10.0.0.1"),
+					},
+				},
+				CountersOrig: conntrack.Counter{
+					Packets: 100,
+					Bytes:   5000,
+				},
+				CountersReply: conntrack.Counter{
+					Packets: 200,
+					Bytes:   10000,
+				},
+				// Fields that should be dropped.
+				ID:      42,
+				Timeout: 120,
+				Mark:    0xff,
+			},
+		}
+
+		summaries := toFlowSummaries(flows)
+		assert.Len(t, summaries, 1)
+
+		s := summaries[0]
+		assert.Equal(t, flows[0].TupleOrig, s.TupleOrig)
+		assert.Equal(t, flows[0].TupleReply, s.TupleReply)
+		assert.Equal(t, flows[0].CountersOrig, s.CountersOrig)
+		assert.Equal(t, flows[0].CountersReply, s.CountersReply)
+	})
+
+	t.Run("Should convert multiple flows", func(t *testing.T) {
+		t.Parallel()
+
+		flows := []conntrack.Flow{
+			{
+				CountersOrig: conntrack.Counter{Packets: 1, Bytes: 10},
+			},
+			{
+				CountersOrig: conntrack.Counter{Packets: 2, Bytes: 20},
+			},
+			{
+				CountersOrig: conntrack.Counter{Packets: 3, Bytes: 30},
+			},
+		}
+
+		summaries := toFlowSummaries(flows)
+		assert.Len(t, summaries, 3)
+		assert.Equal(t, uint64(1), summaries[0].CountersOrig.Packets)
+		assert.Equal(t, uint64(2), summaries[1].CountersOrig.Packets)
+		assert.Equal(t, uint64(3), summaries[2].CountersOrig.Packets)
+	})
+}
+
 func TestShouldIgnoreFlow(t *testing.T) {
 	t.Parallel()
 
@@ -156,7 +241,7 @@ func TestShouldIgnoreFlow(t *testing.T) {
 		t.Parallel()
 
 		collector := Collector{}
-		shouldIgnore := collector.shouldIgnoreFlow(&conntrack.Flow{
+		shouldIgnore := collector.shouldIgnoreFlow(&FlowSummary{
 			CountersOrig: conntrack.Counter{
 				Packets: 0,
 				Bytes:   0,
@@ -169,7 +254,7 @@ func TestShouldIgnoreFlow(t *testing.T) {
 		t.Parallel()
 
 		collector := Collector{}
-		shouldIgnore := collector.shouldIgnoreFlow(&conntrack.Flow{
+		shouldIgnore := collector.shouldIgnoreFlow(&FlowSummary{
 			TupleOrig: conntrack.Tuple{
 				Proto: conntrack.ProtoTuple{
 					Protocol: 123,
@@ -187,7 +272,7 @@ func TestShouldIgnoreFlow(t *testing.T) {
 		t.Parallel()
 
 		collector := Collector{}
-		shouldIgnore := collector.shouldIgnoreFlow(&conntrack.Flow{
+		shouldIgnore := collector.shouldIgnoreFlow(&FlowSummary{
 			TupleOrig: conntrack.Tuple{
 				Proto: conntrack.ProtoTuple{
 					Protocol: IP_PROTO_TCP,
@@ -209,7 +294,7 @@ func TestShouldIgnoreFlow(t *testing.T) {
 		t.Parallel()
 
 		collector := Collector{}
-		shouldIgnore := collector.shouldIgnoreFlow(&conntrack.Flow{
+		shouldIgnore := collector.shouldIgnoreFlow(&FlowSummary{
 			TupleOrig: conntrack.Tuple{
 				Proto: conntrack.ProtoTuple{
 					Protocol: IP_PROTO_TCP,
@@ -231,7 +316,7 @@ func TestShouldIgnoreFlow(t *testing.T) {
 		t.Parallel()
 
 		collector := Collector{}
-		shouldIgnore := collector.shouldIgnoreFlow(&conntrack.Flow{
+		shouldIgnore := collector.shouldIgnoreFlow(&FlowSummary{
 			TupleOrig: conntrack.Tuple{
 				Proto: conntrack.ProtoTuple{
 					Protocol: IP_PROTO_TCP,
