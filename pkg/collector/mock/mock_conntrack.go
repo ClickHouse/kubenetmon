@@ -12,7 +12,7 @@ package mock_collector
 import (
 	reflect "reflect"
 
-	conntrack "github.com/ti-mo/conntrack"
+	conntrack "github.com/ClickHouse/conntrack"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -39,17 +39,17 @@ func (m *Conntrack) EXPECT() *ConntrackMockRecorder {
 	return m.recorder
 }
 
-// Dump mocks base method.
-func (m *Conntrack) Dump(opts *conntrack.DumpOptions) ([]conntrack.Flow, error) {
+// DumpFlowSummaryFilter mocks base method.
+func (m *Conntrack) DumpFlowSummaryFilter(filter conntrack.FlowSummaryFilter, opts *conntrack.DumpOptions) ([]conntrack.FlowSummary, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Dump", opts)
-	ret0, _ := ret[0].([]conntrack.Flow)
+	ret := m.ctrl.Call(m, "DumpFlowSummaryFilter", filter, opts)
+	ret0, _ := ret[0].([]conntrack.FlowSummary)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Dump indicates an expected call of Dump.
-func (mr *ConntrackMockRecorder) Dump(opts any) *gomock.Call {
+// DumpFlowSummaryFilter indicates an expected call of DumpFlowSummaryFilter.
+func (mr *ConntrackMockRecorder) DumpFlowSummaryFilter(filter, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dump", reflect.TypeOf((*Conntrack)(nil).Dump), opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DumpFlowSummaryFilter", reflect.TypeOf((*Conntrack)(nil).DumpFlowSummaryFilter), filter, opts)
 }
