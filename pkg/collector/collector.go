@@ -164,7 +164,6 @@ func (collector *Collector) collectOnce() error {
 
 	// Convert to lightweight summaries so the larger []conntrack.Flow can be GC'd.
 	flows := toFlowSummaries(rawFlows)
-	rawFlows = nil
 
 	for _, flow := range flows {
 		if ignore := collector.shouldIgnoreFlow(&flow); ignore {
