@@ -2,6 +2,7 @@ package conntrack
 
 import (
 	"fmt"
+	"golang.org/x/sys/unix"
 	"net/netip"
 
 	"github.com/mdlayher/netlink"
@@ -287,11 +288,163 @@ func unmarshalFlow(nlm netlink.Message) (Flow, error) {
 	return f, nil
 }
 
+// FlowFilter defines an interface for filtering flows during unmarshaling.
+// This allows extensible filtering without pre-allocating large slices.
+type FlowFilter interface {
+	// Match returns true if the flow matches the filter criteria.
+	Match(flow Flow) bool
+}
+
+// FilterCondition defines the type of comparison to perform.
+type FilterCondition int
+
+const (
+	// Equals matches when the field equals the filter value.
+	Equals FilterCondition = iota
+	// NotEquals matches when the field does not equal the filter value.
+	NotEquals
+)
+
+// ProtocolFilter filters flows by protocol with configurable match conditions.
+type ProtocolFilter struct {
+	Value     uint8
+	Condition FilterCondition
+}
+
+// Match implements FlowFilter interface for ProtocolFilter.
+func (pf ProtocolFilter) Match(flow Flow) bool {
+	protocol := flow.TupleOrig.Proto.Protocol
+	switch pf.Condition {
+	case Equals:
+		return protocol == pf.Value
+	case NotEquals:
+		return protocol != pf.Value
+	default:
+		return false
+	}
+}
+
+// MatchSummary implements FlowSummaryFilter interface for ProtocolFilter.
+func (pf ProtocolFilter) MatchSummary(flow FlowSummary) bool {
+	protocol := flow.TupleOrig.Proto.Protocol
+	switch pf.Condition {
+	case Equals:
+		return protocol == pf.Value
+	case NotEquals:
+		return protocol != pf.Value
+	default:
+		return false
+	}
+}
+
+// NewProtocolFilter creates a ProtocolFilter with the specified value and condition.
+func NewProtocolFilter(protocol uint8, condition FilterCondition) ProtocolFilter {
+	return ProtocolFilter{
+		Value:     protocol,
+		Condition: condition,
+	}
+}
+
+// NewTCPOnlyFilter creates a filter that only allows TCP flows (protocol 6).
+func NewTCPOnlyFilter() ProtocolFilter {
+	return NewProtocolFilter(unix.IPPROTO_TCP, Equals)
+}
+
+// NewExcludeUDPFilter creates a filter that excludes UDP flows (protocol 17).
+func NewExcludeUDPFilter() ProtocolFilter {
+	return NewProtocolFilter(unix.IPPROTO_UDP, NotEquals)
+}
+
+// FlowSummary is a lightweight representation of a conntrack flow containing
+// only tuple and counter data. It is intended for high-volume dump paths where
+// the full Flow struct's memory footprint is prohibitive.
+type FlowSummary struct {
+	TupleOrig, TupleReply       Tuple
+	CountersOrig, CountersReply Counter
+}
+
+// unmarshal populates a FlowSummary from an AttributeDecoder, processing only
+// the four attribute types relevant to tuple and counter data. All other
+// attributes are silently skipped.
+func (fs *FlowSummary) unmarshal(ad *netlink.AttributeDecoder) error {
+	for ad.Next() {
+		t := attributeType(ad.Type())
+
+		var fn func(nad *netlink.AttributeDecoder) error
+		switch t {
+		case ctaTupleOrig:
+			fn = fs.TupleOrig.unmarshal
+		case ctaTupleReply:
+			fn = fs.TupleReply.unmarshal
+		case ctaCountersOrig:
+			fn = fs.CountersOrig.unmarshal
+		case ctaCountersReply:
+			// The Direction flag distinguishes reply counters from orig counters
+			// when the Counter is later inspected without context of its parent.
+			fs.CountersReply.Direction = true
+			fn = fs.CountersReply.unmarshal
+		default:
+			// All attributes outside the summary's scope are intentionally ignored.
+			continue
+		}
+
+		// Recognised attribute types are all nested; reject if the flag is absent.
+		if !nestedFlag(ad.TypeFlags()) {
+			return fmt.Errorf("attribute %v: %w", t, errNotNested)
+		}
+
+		ad.Nested(fn)
+		if err := ad.Err(); err != nil {
+			return fmt.Errorf("unmarshal %s: %w", t, err)
+		}
+	}
+
+	return ad.Err()
+}
+
+// unmarshalFlowSummary unmarshals a FlowSummary from a netlink.Message.
+// The Message must contain valid attributes.
+func unmarshalFlowSummary(nlm netlink.Message) (FlowSummary, error) {
+	var fs FlowSummary
+	_, ad, err := netfilter.DecodeNetlink(nlm)
+	if err != nil {
+		return fs, err
+	}
+
+	err = fs.unmarshal(ad)
+	if err != nil {
+		return fs, err
+	}
+
+	return fs, nil
+}
+
+// FlowSummaryFilter defines an interface for filtering flow summaries during
+// unmarshaling. It allows callers to discard unwanted flows without
+// materialising the full result slice.
+type FlowSummaryFilter interface {
+	MatchSummary(flow FlowSummary) bool
+}
+
 // unmarshalFlows unmarshals a list of flows from a list of Netlink messages.
 // This method can be used to parse the result of a dump or get query.
 func unmarshalFlows(nlm []netlink.Message) ([]Flow, error) {
-	// Pre-allocate to avoid re-allocating output slice on every op
-	out := make([]Flow, 0, len(nlm))
+	return unmarshalFlowsWithFilter(nlm, nil)
+}
+
+// unmarshalFlowsWithFilter unmarshals a list of flows from a list of Netlink messages
+// and applies an optional filter. If filter is nil, all flows are included.
+// When filtering is applied, uses dynamic growth to prevent excessive memory usage with large datasets.
+// When no filter is applied, pre-allocates for optimal performance.
+func unmarshalFlowsWithFilter(nlm []netlink.Message, filter FlowFilter) ([]Flow, error) {
+	var out []Flow
+
+	// Pre-allocate only when no filtering - we know we'll need all entries
+	if filter == nil {
+		out = make([]Flow, 0, len(nlm))
+	}
+	// When filtering, start with zero capacity to let Go's growth algorithm
+	// adapt to the actual result size, optimizing memory consumption
 
 	for i := 0; i < len(nlm); i++ {
 		f, err := unmarshalFlow(nlm[i])
@@ -299,7 +452,37 @@ func unmarshalFlows(nlm []netlink.Message) ([]Flow, error) {
 			return nil, err
 		}
 
-		out = append(out, f)
+		// Apply filter if provided
+		if filter == nil || filter.Match(f) {
+			out = append(out, f)
+		}
+	}
+
+	return out, nil
+}
+
+// unmarshalFlowSummariesWithFilter unmarshals a list of FlowSummary values from
+// a list of Netlink messages and applies an optional filter. If filter is nil,
+// all summaries are included and the result slice is pre-allocated.
+// When filtering, the slice grows dynamically to match the actual result size.
+func unmarshalFlowSummariesWithFilter(nlm []netlink.Message, filter FlowSummaryFilter) ([]FlowSummary, error) {
+	var out []FlowSummary
+
+	// Pre-allocate only when no filtering — we know every entry will be kept.
+	if filter == nil {
+		out = make([]FlowSummary, 0, len(nlm))
+	}
+
+	for i := 0; i < len(nlm); i++ {
+		fs, err := unmarshalFlowSummary(nlm[i])
+		if err != nil {
+			return nil, err
+		}
+
+		// Apply filter if provided.
+		if filter == nil || filter.MatchSummary(fs) {
+			out = append(out, fs)
+		}
 	}
 
 	return out, nil

@@ -181,9 +181,10 @@ func (pt *ProtoTuple) unmarshal(ad *netlink.AttributeDecoder) error {
 		case ctaProtoNum:
 			pt.Protocol = ad.Uint8()
 
-			if pt.Protocol == syscall.IPPROTO_ICMP {
+			switch pt.Protocol {
+			case syscall.IPPROTO_ICMP:
 				pt.ICMPv4 = true
-			} else if pt.Protocol == syscall.IPPROTO_ICMPV6 {
+			case syscall.IPPROTO_ICMPV6:
 				pt.ICMPv6 = true
 			}
 		case ctaProtoSrcPort:

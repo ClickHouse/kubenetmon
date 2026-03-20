@@ -64,8 +64,8 @@ func (et *eventType) unmarshal(h netfilter.Header) error {
 	return nil
 }
 
-// unmarshal unmarshals a Netlink message into an Event structure.
-func (e *Event) unmarshal(nlmsg netlink.Message) error {
+// Unmarshal unmarshals a Netlink message into an Event structure.
+func (e *Event) Unmarshal(nlmsg netlink.Message) error {
 	// Make sure we don't re-use an Event structure
 	if e.Expect != nil || e.Flow != nil {
 		return errReusedEvent

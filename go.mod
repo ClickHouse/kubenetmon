@@ -11,7 +11,6 @@ require (
 	github.com/rs/zerolog v1.32.0
 	github.com/seancfoley/ipaddress-go v1.6.0
 	github.com/stretchr/testify v1.9.0
-	github.com/ti-mo/conntrack v0.6.0
 	go.uber.org/mock v0.4.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2

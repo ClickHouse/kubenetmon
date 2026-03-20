@@ -3,6 +3,7 @@ package conntrack
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/mdlayher/netlink"
 	"github.com/pkg/errors"
@@ -18,10 +19,26 @@ type Conn struct {
 	workers sync.WaitGroup
 }
 
+// ProtoFamily represents a protocol family used to filter Conntrack dumps by
+// IP version. Re-exported from the netfilter package for consumer convenience.
+type ProtoFamily = netfilter.ProtoFamily
+
+const (
+	// ProtoUnspec dumps both IPv4 and IPv6 flows.
+	ProtoUnspec ProtoFamily = netfilter.ProtoUnspec
+	// ProtoIPv4 dumps only IPv4 flows.
+	ProtoIPv4 ProtoFamily = netfilter.ProtoIPv4
+	// ProtoIPv6 dumps only IPv6 flows.
+	ProtoIPv6 ProtoFamily = netfilter.ProtoIPv6
+)
+
 // DumpOptions is passed as an option to `Dump`-related methods to modify their behaviour.
 type DumpOptions struct {
 	// ZeroCounters resets all flows' counters to zero after the dump operation.
 	ZeroCounters bool
+	// Family restricts the dump to a specific protocol family (e.g. ProtoIPv4).
+	// Zero value (ProtoUnspec) dumps both IPv4 and IPv6.
+	Family ProtoFamily
 }
 
 // Dial opens a new Netfilter Netlink connection and returns it
@@ -47,6 +64,10 @@ func (c *Conn) Close() error {
 	c.workers.Wait()
 
 	return nil
+}
+
+func (c *Conn) SetDeadline(deadline time.Time) error {
+	return c.conn.SetDeadline(deadline)
 }
 
 // SetOption enables or disables a netlink socket option for the Conn.
@@ -107,6 +128,7 @@ func (c *Conn) Listen(evChan chan<- Event, numWorkers uint8, groups []netfilter.
 
 	// Start numWorkers amount of worker goroutines
 	for id := uint8(0); id < numWorkers; id++ {
+		c.workers.Add(1)
 		go c.eventWorker(id, evChan, errChan)
 	}
 
@@ -119,7 +141,6 @@ func (c *Conn) eventWorker(workerID uint8, evChan chan<- Event, errChan chan<- e
 	var recv []netlink.Message
 	var ev Event
 
-	c.workers.Add(1)
 	defer c.workers.Done()
 
 	for {
@@ -154,7 +175,7 @@ func (c *Conn) eventWorker(workerID uint8, evChan chan<- Event, errChan chan<- e
 
 		// Decode event and send on channel
 		ev = *new(Event)
-		err := ev.unmarshal(recv[0])
+		err := ev.Unmarshal(recv[0])
 		if err != nil {
 			errChan <- err
 			return
@@ -191,6 +212,73 @@ func (c *Conn) Dump(opts *DumpOptions) ([]Flow, error) {
 	}
 
 	return unmarshalFlows(nlm)
+}
+
+// DumpFlowFilter gets all Conntrack connections from the kernel in the form of a list
+// of Flow objects, but only returns flows that match the provided FlowFilter.
+// This avoids pre-allocating large slices and reduces memory usage when filtering.
+func (c *Conn) DumpFlowFilter(filter FlowFilter, opts *DumpOptions) ([]Flow, error) {
+	msgType := ctGet
+	if opts != nil && opts.ZeroCounters {
+		msgType = ctGetCtrZero
+	}
+
+	req, err := netfilter.MarshalNetlink(
+		netfilter.Header{
+			SubsystemID: netfilter.NFSubsysCTNetlink,
+			MessageType: netfilter.MessageType(msgType),
+			Family:      netfilter.ProtoUnspec, // ProtoUnspec dumps both IPv4 and IPv6
+			Flags:       netlink.Request | netlink.Dump,
+		},
+		nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	nlm, err := c.conn.Query(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return unmarshalFlowsWithFilter(nlm, filter)
+}
+
+// DumpFlowSummaryFilter gets all Conntrack connections from the kernel as a list
+// of FlowSummary values, applying an optional FlowSummaryFilter to discard
+// unneeded entries. Only tuple and counter attributes are decoded, making this
+// significantly cheaper than DumpFlowFilter for high-volume paths.
+func (c *Conn) DumpFlowSummaryFilter(filter FlowSummaryFilter, opts *DumpOptions) ([]FlowSummary, error) {
+	msgType := ctGet
+	family := netfilter.ProtoUnspec
+	if opts != nil {
+		if opts.ZeroCounters {
+			msgType = ctGetCtrZero
+		}
+		if opts.Family != 0 {
+			family = opts.Family
+		}
+	}
+
+	req, err := netfilter.MarshalNetlink(
+		netfilter.Header{
+			SubsystemID: netfilter.NFSubsysCTNetlink,
+			MessageType: netfilter.MessageType(msgType),
+			Family:      family,
+			Flags:       netlink.Request | netlink.Dump,
+		},
+		nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	nlm, err := c.conn.Query(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return unmarshalFlowSummariesWithFilter(nlm, filter)
 }
 
 // DumpFilter gets all Conntrack connections from the kernel in the form of a list
@@ -382,7 +470,7 @@ func (c *Conn) Get(f Flow) (Flow, error) {
 	}
 
 	pf := netfilter.ProtoIPv4
-	if f.TupleOrig.IP.IsIPv6() && f.TupleReply.IP.IsIPv6() {
+	if f.TupleOrig.IP.IsIPv6() || f.TupleReply.IP.IsIPv6() {
 		pf = netfilter.ProtoIPv6
 	}
 
