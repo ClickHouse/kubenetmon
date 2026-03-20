@@ -15,7 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog/log"
-	"github.com/ti-mo/conntrack"
+	"github.com/ClickHouse/conntrack"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
@@ -26,32 +26,6 @@ const (
 	// UDP protocol.
 	IP_PROTO_UDP = 17
 )
-
-// FlowSummary is a lightweight representation of a conntrack flow that only
-// contains the fields used by kubenetmon (tuples and counters). Converting
-// []conntrack.Flow to []FlowSummary immediately after a dump allows the
-// heavier conntrack.Flow slice to be garbage collected, reducing peak memory.
-type FlowSummary struct {
-	TupleOrig     conntrack.Tuple
-	TupleReply    conntrack.Tuple
-	CountersOrig  conntrack.Counter
-	CountersReply conntrack.Counter
-}
-
-// toFlowSummaries converts a slice of conntrack.Flow to a slice of
-// FlowSummary, extracting only the fields that kubenetmon needs.
-func toFlowSummaries(flows []conntrack.Flow) []FlowSummary {
-	summaries := make([]FlowSummary, len(flows))
-	for i, f := range flows {
-		summaries[i] = FlowSummary{
-			TupleOrig:     f.TupleOrig,
-			TupleReply:    f.TupleReply,
-			CountersOrig:  f.CountersOrig,
-			CountersReply: f.CountersReply,
-		}
-	}
-	return summaries
-}
 
 var (
 	localhost = netip.AddrFrom4([4]byte{127, 0, 0, 1})
@@ -157,13 +131,13 @@ func (collector *Collector) collectOnce() error {
 	}
 
 	now := collector.clock.Now()
-	rawFlows, err := collector.conntrack.Dump(&conntrack.DumpOptions{ZeroCounters: true})
+	flows, err := collector.conntrack.DumpFlowSummaryFilter(
+		conntrack.NewExcludeUDPFilter(),
+		&conntrack.DumpOptions{ZeroCounters: true, Family: conntrack.ProtoIPv4},
+	)
 	if err != nil {
 		return fmt.Errorf("could not dump conntrack: %v", err)
 	}
-
-	// Convert to lightweight summaries so the larger []conntrack.Flow can be GC'd.
-	flows := toFlowSummaries(rawFlows)
 
 	for _, flow := range flows {
 		if ignore := collector.shouldIgnoreFlow(&flow); ignore {
@@ -214,7 +188,10 @@ func (collector *Collector) collectOnce() error {
 func (collector *Collector) conntrackCountsNonEmpty(uptimeWaitDuration time.Duration) (bool, error) {
 	for {
 		// Check conntrack counters.
-		flows, err := collector.conntrack.Dump(&conntrack.DumpOptions{ZeroCounters: false})
+		flows, err := collector.conntrack.DumpFlowSummaryFilter(
+			conntrack.NewExcludeUDPFilter(),
+			&conntrack.DumpOptions{ZeroCounters: false, Family: conntrack.ProtoIPv4},
+		)
 		if err != nil {
 			return false, err
 		}
@@ -253,7 +230,7 @@ func (collector *Collector) conntrackCountsNonEmpty(uptimeWaitDuration time.Dura
 
 // shouldIgnoreFlow returns true if the flow is to be ignored and not reported
 // to the server for labelling, for example because it's a localhost flow.
-func (collector *Collector) shouldIgnoreFlow(flow *FlowSummary) bool {
+func (collector *Collector) shouldIgnoreFlow(flow *conntrack.FlowSummary) bool {
 	// Ignore flows with no data to report.
 	if flow.CountersOrig.Bytes == 0 && flow.CountersOrig.Packets == 0 && flow.CountersReply.Bytes == 0 && flow.CountersReply.Packets == 0 {
 		return true

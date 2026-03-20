@@ -14,7 +14,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/log"
-	"github.com/ti-mo/conntrack"
+	"github.com/ClickHouse/conntrack"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
