@@ -30,6 +30,21 @@ echo "Waiting for ClickHouse pod to be ready..."
 kubectl wait --namespace default --for=condition=ready pod -l app=clickhouse --timeout=120s
 clickhouse_pod=$(kubectl get pods -l app=clickhouse -o jsonpath="{.items[0].metadata.name}")
 
+# Wait for ClickHouse to actually accept connections (pod readiness != server ready)
+echo "Waiting for ClickHouse to accept connections..."
+for i in $(seq 1 30); do
+    if kubectl exec -i "$clickhouse_pod" -- clickhouse-client --query="SELECT 1" >/dev/null 2>&1; then
+        echo "ClickHouse is ready!"
+        break
+    fi
+    if [ "$i" -eq 30 ]; then
+        echo "ClickHouse failed to accept connections after 30 attempts"
+        exit 1
+    fi
+    echo "Waiting for ClickHouse... (attempt $i/30)"
+    sleep 2
+done
+
 # Execute the SQL command
 kubectl exec -i "$clickhouse_pod" -- clickhouse-client --query="$(cat test/network_flows_0.sql)"
 
