@@ -94,6 +94,7 @@ func NewInserter(clickhouseOptions ClickHouseOptions, runtimeInfo RuntimeInfo, n
 		w := worker{
 			waitAsyncInsert:      clickhouseOptions.WaitForAsyncInsert,
 			conn:                 conn,
+			database:             clickhouseOptions.Database,
 			batch:                make([]string, 0, clickhouseOptions.BatchSize),
 			batchExpirationTimer: time.NewTimer(clickhouseOptions.BatchSendTimeout),
 			batchSendTimeout:     clickhouseOptions.BatchSendTimeout,
