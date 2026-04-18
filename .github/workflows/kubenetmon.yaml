@@ -3,14 +3,14 @@ name: Lint and test charts and code
 on:
   pull_request:
     paths:
-      - '**'
+      - "**"
   push:
     branches:
       - main
     tags:
-      - 'v*'
+      - "v*"
     paths:
-      - '**'
+      - "**"
 
 jobs:
   golangci:
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: "1.23"
           cache: true
           cache-dependency-path: go.sum
       - name: golangci-lint
@@ -35,16 +35,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: "1.23"
           cache: true
           cache-dependency-path: go.sum
       - name: Run tests
         run: |
           make integration-test
           make test
-      
+
   build-docker-image:
-    name: Build Docker image
+    name: Build Multi-Arch Docker Image
     runs-on: ubuntu-latest
     outputs:
       image-tags: ${{ steps.meta.outputs.tags }}
@@ -52,49 +52,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker
-        uses: docker/setup-docker-action@v4
-        with:
-          daemon-config: |
-            {
-              "features": {
-                "containerd-snapshotter": true
-              }
-            }
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Determine Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/clickhouse/kubenetmon
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=sha
             type=ref,event=tag
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Build Docker image
+      - name: Build Docker image and export to local cache
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/arm64,linux/amd64
-          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          load: true
+          push: false
+          outputs: type=local,dest=./image-output
 
-      - name: Save image as artifact
-        run: |
-          first_tag=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
-          docker save -o image.tar $first_tag
-      
-      - name: Upload image artifact
+      - name: Archive build output
+        run: tar -zcf image-output.tar.gz -C ./image-output .
+
+      - name: Upload image build cache artifact
         uses: actions/upload-artifact@v4
         with:
-          name: docker-image
-          path: image.tar
+          name: docker-image-build-cache
+          path: image-output.tar.gz
 
   helm-test:
     name: Test chart
@@ -104,13 +94,27 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Download Docker image
+      - name: Download image build cache
         uses: actions/download-artifact@v4
         with:
-          name: docker-image
+          name: docker-image-build-cache
 
-      - name: Load Docker image
-        run: docker load -i image.tar
+      - name: Extract build cache
+        run: |
+          mkdir -p ./image-output
+          tar -zxf image-output.tar.gz -C ./image-output
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Load image for testing from cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          tags: ${{ needs.build-docker-image.outputs.image-tags }}
+          load: true
+          cache-from: type=local,src=./image-output
 
       - name: Install Helm
         uses: azure/setup-helm@v4
@@ -146,7 +150,7 @@ jobs:
           first_tag=$(echo "${{ needs.build-docker-image.outputs.image-tags }}" | head -n 1)
           repository=$(echo $first_tag | cut -d':' -f1)
           tag=$(echo $first_tag | cut -d':' -f2)
-          
+
           ct install \
             --config ../../ct.yaml \
             --target-branch ${{ github.event.repository.default_branch }} \
@@ -158,7 +162,7 @@ jobs:
             --set=image.tag=$tag \
             --set=configuration.skipConntrackSanityCheck=true \
             --set=configuration.uptimeWaitDuration=1s"
-          
+
           ct install \
             --config ../../ct.yaml \
             --target-branch ${{ github.event.repository.default_branch }} \
@@ -188,13 +192,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download Docker image
+      - name: Download image build cache
         uses: actions/download-artifact@v4
         with:
-          name: docker-image
+          name: docker-image-build-cache
+      - name: Extract build cache
+        run: |
+          mkdir -p ./image-output
+          tar -zxf image-output.tar.gz -C ./image-output
 
-      - name: Load Docker image
-        run: docker load -i image.tar
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -203,21 +213,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push to GitHub Container Registry
-        run: |
-          tags=(${{ needs.build-docker-image.outputs.image-tags }})
-          first_tag="${tags[0]}"
-          
-          if [ ${#tags[@]} -gt 1 ]; then
-            for tag in "${tags[@]:1}"; do
-              docker tag "$first_tag" "$tag"
-              docker push "$tag"
-            done
-          fi
-          
-          docker push "$first_tag"
+      - name: Push multi-arch image from cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64,linux/amd64
+          tags: ${{ needs.build-docker-image.outputs.image-tags }}
+          push: true
+          cache-from: type=local,src=./image-output
 
   helm-publish:
+    # No changes needed in this job
     name: Package and publish Helm charts
     needs: [golangci, test, build-docker-image, helm-test]
     runs-on: ubuntu-latest
